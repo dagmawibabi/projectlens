@@ -6,7 +6,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -48,29 +47,22 @@ export function ReportExport({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-sm border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-        >
-          <Download className="size-3.5" />
-          Export report
-          <ChevronDown className="size-3.5 text-muted-foreground" />
-        </button>
+      <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-sm border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary">
+        <Download className="size-3.5" />
+        Export report
+        <ChevronDown className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel>Export report</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={exportMarkdown}>
+        <DropdownMenuItem onClick={exportMarkdown}>
           <FileText className="size-4" />
           <span>Markdown (.md)</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={exportJson}>
+        <DropdownMenuItem onClick={exportJson}>
           <Braces className="size-4" />
           <span>JSON (.json)</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); copyMarkdown() }}>
+        <DropdownMenuItem closeOnClick={false} onClick={copyMarkdown}>
           {copied ? <ClipboardCheck className="size-4 text-[color:var(--sev-ok)]" /> : <Clipboard className="size-4" />}
           <span>{copied ? "Copied to clipboard" : "Copy as Markdown"}</span>
         </DropdownMenuItem>
