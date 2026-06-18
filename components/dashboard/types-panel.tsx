@@ -1,0 +1,102 @@
+"use client"
+
+import { useState } from "react"
+import { ChevronRight, FileCode2, CheckCircle2 } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import type { TypeCheckResult, TypeDiagnostic } from "@/lib/schema"
+import { cn } from "@/lib/utils"
+
+function DiagnosticItem({ diag }: { diag: TypeDiagnostic }) {
+  const [open, setOpen] = useState(false)
+  const hasChain = diag.related.length > 0
+
+  return (
+    <Card className="gap-0 overflow-hidden py-0">
+      <button
+        type="button"
+        onClick={() => hasChain && setOpen((v) => !v)}
+        className={cn(
+          "flex w-full items-start gap-3 p-4 text-left",
+          hasChain ? "hover:bg-secondary/40" : "cursor-default",
+        )}
+        aria-expanded={open}
+      >
+        <ChevronRight
+          className={cn(
+            "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
+            !hasChain && "opacity-0",
+          )}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-muted-foreground">
+            <FileCode2 className="size-3.5 shrink-0" />
+            <span className="truncate text-foreground">{diag.filePath}</span>
+            <span className="text-[color:var(--sev-high)]">
+              {diag.line}:{diag.column}
+            </span>
+            <span className="ml-auto shrink-0 rounded bg-[color:var(--sev-high)]/12 px-1.5 py-0.5 text-[color:var(--sev-high)]">
+              {diag.code}
+            </span>
+          </div>
+          <p className="mt-1.5 text-pretty text-sm leading-relaxed text-foreground">{diag.message}</p>
+        </div>
+      </button>
+
+      {open && hasChain && (
+        <div className="border-t border-border bg-secondary/20 px-4 py-3">
+          <ol className="relative ml-2 border-l border-border">
+            {diag.related.map((step, i) => (
+              <li
+                key={i}
+                className="relative py-1.5 text-sm leading-relaxed text-muted-foreground"
+                style={{ paddingLeft: `${step.depth * 12 + 20}px` }}
+              >
+                <span
+                  className="absolute top-3 size-1.5 rounded-full bg-muted-foreground/40"
+                  style={{ left: `${step.depth * 12 + 4}px` }}
+                  aria-hidden
+                />
+                {step.message}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+export function TypesPanel({ types }: { types: TypeCheckResult }) {
+  if (types.unavailable) {
+    return (
+      <Card className="p-6 text-sm text-muted-foreground">
+        TypeScript was not detected in this project. {types.note}
+      </Card>
+    )
+  }
+
+  if (types.diagnostics.length === 0) {
+    return (
+      <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+        <CheckCircle2 className="size-8 text-[color:var(--sev-ok)]" />
+        <div>
+          <p className="text-sm font-medium text-foreground">No type errors</p>
+          <p className="text-sm text-muted-foreground">{"tsc --noEmit passed cleanly."}</p>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="font-mono text-xs text-muted-foreground">
+        {types.diagnostics.length} type {types.diagnostics.length === 1 ? "error" : "errors"} — click to expand the
+        diagnostic chain
+      </p>
+      {types.diagnostics.map((diag, i) => (
+        <DiagnosticItem key={`${diag.filePath}-${diag.line}-${i}`} diag={diag} />
+      ))}
+    </div>
+  )
+}
