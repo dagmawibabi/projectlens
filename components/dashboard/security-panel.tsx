@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { ChevronRight, ShieldAlert, ShieldCheck, Package, ExternalLink } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CodeBlock } from "./code-block"
+import { InsightCard, ProportionBar, CountList } from "./insights"
 import { severityStyle, bySeverityDesc } from "@/lib/severity"
 import type { SecurityResult, SecurityFinding, DependencyVuln } from "@/lib/schema"
 import { cn } from "@/lib/utils"
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils"
 function DiffBlock({ fix }: { fix: string }) {
   const lines = fix.replace(/\n$/, "").split("\n")
   return (
-    <pre className="overflow-x-auto rounded-md border border-border bg-background/60 py-2 font-mono text-xs leading-relaxed">
+    <pre className="overflow-x-auto rounded-sm border border-border bg-background/60 py-2 font-mono text-xs leading-relaxed">
       <code className="block">
         {lines.map((line, i) => {
           const isAdd = line.startsWith("+")
@@ -54,7 +55,7 @@ function FindingCard({ finding }: { finding: SecurityFinding }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={cn("border-0 font-mono text-[10px] uppercase", sev.bg, sev.text)}>{sev.label}</Badge>
-            <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+            <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
               {finding.category}
             </span>
             <span className="font-mono text-xs text-muted-foreground">
@@ -79,7 +80,7 @@ function FindingCard({ finding }: { finding: SecurityFinding }) {
             </div>
           )}
 
-          <div className="rounded-md border border-border bg-card p-3">
+          <div className="rounded-sm border border-border bg-card p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recommendation</p>
             <p className="mt-1 text-pretty text-sm leading-relaxed text-foreground">{finding.recommendation}</p>
           </div>
@@ -119,7 +120,7 @@ function DependencyRow({ dep }: { dep: DependencyVuln }) {
             <span className="font-mono text-sm text-foreground">{dep.name}</span>
             <span className="font-mono text-xs text-muted-foreground">{dep.currentVersion}</span>
             <Badge className={cn("border-0 font-mono text-[10px] uppercase", sev.bg, sev.text)}>{sev.label}</Badge>
-            <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               {dep.dependencyType}
             </span>
           </div>
@@ -127,7 +128,7 @@ function DependencyRow({ dep }: { dep: DependencyVuln }) {
           {dep.impact && <p className="mt-1 text-pretty text-xs leading-relaxed text-muted-foreground">{dep.impact}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">
             {dep.cves.map((cve) => (
-              <span key={cve} className="rounded bg-secondary px-1.5 py-0.5">
+              <span key={cve} className="rounded-sm bg-secondary px-1.5 py-0.5">
                 {cve}
               </span>
             ))}
@@ -135,7 +136,7 @@ function DependencyRow({ dep }: { dep: DependencyVuln }) {
         </div>
       </div>
       {dep.fixedIn && (
-        <div className="shrink-0 rounded-md border border-[color:var(--sev-ok)]/40 bg-[color:var(--sev-ok)]/10 px-2.5 py-1 font-mono text-xs text-[color:var(--sev-ok)]">
+        <div className="shrink-0 rounded-sm border border-[color:var(--sev-ok)]/40 bg-[color:var(--sev-ok)]/10 px-2.5 py-1 font-mono text-xs text-[color:var(--sev-ok)]">
           {dep.currentVersion} → {dep.fixedIn}
         </div>
       )}
@@ -144,6 +145,21 @@ function DependencyRow({ dep }: { dep: DependencyVuln }) {
 }
 
 export function SecurityPanel({ security }: { security: SecurityResult }) {
+  const findings = useMemo(() => [...security.findings].sort(bySeverityDesc), [security.findings])
+  const deps = useMemo(() => [...security.dependencies].sort(bySeverityDesc), [security.dependencies])
+
+  const sevSegments = (["critical", "high", "medium", "low", "info"] as const).map((s, i) => ({
+    label: severityStyle(s).label,
+    value: security.findings.filter((f) => f.severity === s).length,
+    color: `var(--chart-${i + 1})`,
+  }))
+
+  const categoryRows = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const f of security.findings) map.set(f.category, (map.get(f.category) ?? 0) + 1)
+    return [...map.entries()].map(([key, count]) => ({ key, label: key, count })).sort((a, b) => b.count - a.count)
+  }, [security.findings])
+
   if (security.skipped) {
     return (
       <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
@@ -158,46 +174,84 @@ export function SecurityPanel({ security }: { security: SecurityResult }) {
     )
   }
 
-  const findings = [...security.findings].sort(bySeverityDesc)
-  const deps = [...security.dependencies].sort(bySeverityDesc)
+  const criticalHigh = security.findings.filter((f) => f.severity === "critical" || f.severity === "high").length
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="size-4 text-[color:var(--sev-high)]" />
-          <h3 className="text-sm font-semibold text-foreground">Code findings</h3>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {findings.length}
-          </Badge>
-        </div>
-        {findings.length === 0 ? (
-          <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-            <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
-            No code-level security issues found by the AI review.
-          </Card>
-        ) : (
-          findings.map((f) => <FindingCard key={f.id} finding={f} />)
-        )}
-      </section>
+    <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+      {/* Posture rail */}
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+        <InsightCard title="Posture">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-foreground">
+                {security.findings.length}
+              </span>
+              <span className="text-[11px] text-muted-foreground">code findings</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-foreground">{criticalHigh}</span>
+              <span className="text-[11px] text-muted-foreground">critical + high</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-foreground">{deps.length}</span>
+              <span className="text-[11px] text-muted-foreground">vuln deps</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-foreground">
+                {deps.filter((d) => d.fixedIn).length}
+              </span>
+              <span className="text-[11px] text-muted-foreground">patch available</span>
+            </div>
+          </div>
+        </InsightCard>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <Package className="size-4 text-[color:var(--sev-medium)]" />
-          <h3 className="text-sm font-semibold text-foreground">Vulnerable dependencies</h3>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {deps.length}
-          </Badge>
-        </div>
-        {deps.length === 0 ? (
-          <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-            <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
-            No known advisories in your dependency tree.
-          </Card>
-        ) : (
-          <Card className="gap-0 overflow-hidden py-0">{deps.map((d) => <DependencyRow key={d.name} dep={d} />)}</Card>
-        )}
-      </section>
+        <InsightCard title="By severity">
+          <ProportionBar segments={sevSegments} />
+        </InsightCard>
+
+        <InsightCard title="By category">
+          <CountList rows={categoryRows} emptyLabel="No findings." />
+        </InsightCard>
+      </aside>
+
+      {/* Main findings */}
+      <div className="flex min-w-0 flex-col gap-6">
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="size-4 text-[color:var(--sev-high)]" />
+            <h3 className="text-sm font-semibold text-foreground">Code findings</h3>
+            <Badge variant="secondary" className="font-mono text-xs">
+              {findings.length}
+            </Badge>
+          </div>
+          {findings.length === 0 ? (
+            <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+              <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
+              No code-level security issues found by the AI review.
+            </Card>
+          ) : (
+            findings.map((f) => <FindingCard key={f.id} finding={f} />)
+          )}
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Package className="size-4 text-[color:var(--sev-medium)]" />
+            <h3 className="text-sm font-semibold text-foreground">Vulnerable dependencies</h3>
+            <Badge variant="secondary" className="font-mono text-xs">
+              {deps.length}
+            </Badge>
+          </div>
+          {deps.length === 0 ? (
+            <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+              <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
+              No known advisories in your dependency tree.
+            </Card>
+          ) : (
+            <Card className="gap-0 overflow-hidden py-0">{deps.map((d) => <DependencyRow key={d.name} dep={d} />)}</Card>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

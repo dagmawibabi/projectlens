@@ -2,6 +2,8 @@
 
 import { Play, Loader2, Check, Minus, Terminal, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { HelpDialog } from "./help-dialog"
+import { ThemeToggle } from "./theme-toggle"
 import type { ProjectInfo, RunPhase, PhaseStatus } from "@/lib/schema"
 
 const PHASES: { id: RunPhase; label: string }[] = [
@@ -80,16 +82,16 @@ export function RunHeader({ project, aiEnabled, running, phases, durationMs, onR
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {durationMs != null && !running && (
-            <span className="font-mono text-xs text-muted-foreground">{(durationMs / 1000).toFixed(1)}s</span>
+            <span className="mr-1 font-mono text-xs text-muted-foreground">{(durationMs / 1000).toFixed(1)}s</span>
           )}
           <button
             type="button"
             onClick={onRun}
             disabled={running}
             className={cn(
-              "inline-flex items-center gap-2 rounded-md px-4 py-2 font-mono text-sm font-medium transition-colors",
+              "inline-flex items-center gap-2 rounded-sm px-4 py-2 font-mono text-sm font-medium transition-colors",
               running
                 ? "cursor-not-allowed bg-secondary text-muted-foreground"
                 : "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -98,6 +100,8 @@ export function RunHeader({ project, aiEnabled, running, phases, durationMs, onR
             {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
             {running ? "Running…" : "Run checks"}
           </button>
+          <HelpDialog />
+          <ThemeToggle />
         </div>
       </div>
     </header>

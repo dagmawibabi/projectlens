@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { ChevronRight, FileCode2, CheckCircle2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { InsightCard, CountList } from "./insights"
 import type { TypeCheckResult, TypeDiagnostic } from "@/lib/schema"
 import { cn } from "@/lib/utils"
 
@@ -35,7 +36,7 @@ function DiagnosticItem({ diag }: { diag: TypeDiagnostic }) {
             <span className="text-[color:var(--sev-high)]">
               {diag.line}:{diag.column}
             </span>
-            <span className="ml-auto shrink-0 rounded bg-[color:var(--sev-high)]/12 px-1.5 py-0.5 text-[color:var(--sev-high)]">
+            <span className="ml-auto shrink-0 rounded-sm bg-[color:var(--sev-high)]/12 px-1.5 py-0.5 text-[color:var(--sev-high)]">
               {diag.code}
             </span>
           </div>
@@ -68,6 +69,18 @@ function DiagnosticItem({ diag }: { diag: TypeDiagnostic }) {
 }
 
 export function TypesPanel({ types }: { types: TypeCheckResult }) {
+  const fileRows = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const d of types.diagnostics) map.set(d.filePath, (map.get(d.filePath) ?? 0) + 1)
+    return [...map.entries()].map(([key, count]) => ({ key, label: key, count })).sort((a, b) => b.count - a.count)
+  }, [types.diagnostics])
+
+  const codeRows = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const d of types.diagnostics) map.set(d.code, (map.get(d.code) ?? 0) + 1)
+    return [...map.entries()].map(([key, count]) => ({ key, label: key, count })).sort((a, b) => b.count - a.count)
+  }, [types.diagnostics])
+
   if (types.unavailable) {
     return (
       <Card className="p-6 text-sm text-muted-foreground">
@@ -89,14 +102,25 @@ export function TypesPanel({ types }: { types: TypeCheckResult }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="font-mono text-xs text-muted-foreground">
-        {types.diagnostics.length} type {types.diagnostics.length === 1 ? "error" : "errors"} — click to expand the
-        diagnostic chain
-      </p>
-      {types.diagnostics.map((diag, i) => (
-        <DiagnosticItem key={`${diag.filePath}-${diag.line}-${i}`} diag={diag} />
-      ))}
+    <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+        <InsightCard title="Affected files">
+          <CountList rows={fileRows} />
+        </InsightCard>
+        <InsightCard title="Error codes">
+          <CountList rows={codeRows} />
+        </InsightCard>
+      </aside>
+
+      <div className="flex min-w-0 flex-col gap-3">
+        <p className="font-mono text-xs text-muted-foreground">
+          {types.diagnostics.length} type {types.diagnostics.length === 1 ? "error" : "errors"} — click to expand the
+          diagnostic chain
+        </p>
+        {types.diagnostics.map((diag, i) => (
+          <DiagnosticItem key={`${diag.filePath}-${diag.line}-${i}`} diag={diag} />
+        ))}
+      </div>
     </div>
   )
 }
