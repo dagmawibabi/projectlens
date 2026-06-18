@@ -25,11 +25,11 @@ export function CodeBlock({ startLine, code, highlightLine, className }: CodeBlo
           return (
             <div
               key={lineNo}
-              className={`flex ${isHit ? "bg-[color:var(--sev-critical)]/10" : ""}`}
+              className={`flex ${isHit ? "bg-foreground/[0.07]" : ""}`}
             >
               <span
                 className={`sticky left-0 w-10 shrink-0 select-none px-2 text-right tabular-nums ${
-                  isHit ? "text-[color:var(--sev-critical)]" : "text-muted-foreground/50"
+                  isHit ? "text-foreground" : "text-muted-foreground/50"
                 }`}
               >
                 {lineNo}
@@ -37,7 +37,7 @@ export function CodeBlock({ startLine, code, highlightLine, className }: CodeBlo
               <span
                 className={`flex-1 whitespace-pre pl-3 pr-4 ${
                   isHit
-                    ? "border-l-2 border-[color:var(--sev-critical)] text-foreground"
+                    ? "border-l-2 border-foreground text-foreground"
                     : "border-l-2 border-transparent text-foreground/80"
                 }`}
               >
