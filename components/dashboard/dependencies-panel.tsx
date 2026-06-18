@@ -1,11 +1,12 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Package, ShieldCheck, ArrowUpRight, Boxes } from "lucide-react"
+import { Package, ShieldCheck, ArrowUpRight, Boxes, ListTree, Share2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { InsightCard, ProportionBar, CountList } from "./insights"
 import { FileLink, useInspector } from "./inspector"
+import { DependencyGraph } from "./dependency-graph"
 import { severityStyle, bySeverityDesc } from "@/lib/severity"
 import { depToIssue } from "@/lib/issues"
 import type { DependencyResult, DependencyFinding, DependencyIssueKind } from "@/lib/schema"
@@ -80,6 +81,42 @@ function FindingRow({ dep }: { dep: DependencyFinding }) {
 }
 
 export function DependenciesPanel({ deps }: { deps: DependencyResult }) {
+  const [view, setView] = useState<"findings" | "graph">("findings")
+
+  const subTabs: { key: "findings" | "graph"; label: string; icon: typeof ListTree; count?: number }[] = [
+    { key: "findings", label: "Findings", icon: ListTree, count: deps.findings.length },
+    { key: "graph", label: "Dependency graph", icon: Share2, count: deps.graph?.nodes.length },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-1 self-start rounded-sm border border-border bg-card p-1">
+        {subTabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setView(t.key)}
+            disabled={t.key === "graph" && !deps.graph}
+            className={cn(
+              "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-40",
+              view === t.key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <t.icon className="size-4" />
+            {t.label}
+            {t.count != null && (
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">{t.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {view === "graph" && deps.graph ? <DependencyGraph graph={deps.graph} /> : <FindingsView deps={deps} />}
+    </div>
+  )
+}
+
+function FindingsView({ deps }: { deps: DependencyResult }) {
   const [filter, setFilter] = useState<Filter>("all")
 
   const findings = useMemo(() => [...deps.findings].sort(bySeverityDesc), [deps.findings])
