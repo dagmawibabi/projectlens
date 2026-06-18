@@ -181,7 +181,7 @@ export function Dashboard({
           >
             {/* Mobile / tablet navigation */}
             <div className="flex items-center gap-2 lg:hidden">
-              <Select value={tab} onValueChange={setTab}>
+              <Select value={tab} onValueChange={(v) => v && setTab(v)}>
                 <SelectTrigger className="flex-1">
                   <span className="flex items-center gap-2">
                     <activeTab.icon className="size-4 text-muted-foreground" />
