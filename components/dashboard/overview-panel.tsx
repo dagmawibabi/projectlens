@@ -3,13 +3,17 @@ import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { HealthRing } from "./health-ring"
 import { TrendChart } from "./trend-chart"
+import { ReportExport } from "./report-export"
 import { InsightCard, ProportionBar, CountList } from "./insights"
 import { severityStyle } from "@/lib/severity"
+import { computeUnifiedHealth, type HealthCategory } from "@/lib/health"
 import type { AnalysisReport, TrendPoint, Severity } from "@/lib/schema"
+import type { ProjectInsights } from "@/lib/project-insights"
 
 interface OverviewPanelProps {
   report: AnalysisReport
   history: TrendPoint[]
+  insights: ProjectInsights
 }
 
 function StatCard({
@@ -34,14 +38,29 @@ function StatCard({
   )
 }
 
-function BreakdownBar({ label, value }: { label: string; value: number }) {
+function scoreColor(score: number): string {
+  if (score >= 80) return "var(--sev-ok)"
+  if (score >= 60) return "var(--sev-medium)"
+  if (score >= 40) return "var(--sev-high)"
+  return "var(--sev-critical)"
+}
+
+function CategoryBar({ category }: { category: HealthCategory }) {
+  const color = scoreColor(category.score)
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono tabular-nums">{value}</span>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="truncate text-muted-foreground">{category.label}</span>
+          <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/60">
+            {Math.round(category.weight * 100)}%
+          </span>
+        </span>
+        <span className="shrink-0 font-mono tabular-nums" style={{ color }}>
+          {category.score}
+        </span>
       </div>
-      <Progress value={value} className="h-1.5" />
+      <Progress value={category.score} className="h-1.5" />
     </div>
   )
 }
@@ -119,8 +138,9 @@ function topFiles(report: AnalysisReport) {
     .slice(0, 8)
 }
 
-export function OverviewPanel({ report, history }: OverviewPanelProps) {
-  const { health, lint, types, security } = report
+export function OverviewPanel({ report, history, insights }: OverviewPanelProps) {
+  const { lint, types, security } = report
+  const health = computeUnifiedHealth(report, insights)
   const critical = security.findings.filter((f) => f.severity === "critical").length
   const high = security.findings.filter((f) => f.severity === "high").length
   const prev = history.length >= 2 ? history[history.length - 2].score : null
@@ -136,34 +156,55 @@ export function OverviewPanel({ report, history }: OverviewPanelProps) {
   }))
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {/* Health score */}
-      <Card className="flex flex-col items-center justify-center gap-4 p-6">
-        <HealthRing score={health.score} grade={health.grade} />
-        <div className="flex items-center gap-2 text-sm">
-          {delta != null && (
-            <span
-              className="font-mono tabular-nums"
-              style={{ color: delta >= 0 ? "var(--sev-ok)" : "var(--sev-critical)" }}
-            >
-              {delta >= 0 ? "+" : ""}
-              {delta}
-            </span>
-          )}
-          <span className="text-muted-foreground">vs previous run</span>
+    <div className="flex flex-col gap-4">
+      {/* Section header with export */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Project health</h2>
+          <p className="text-xs text-muted-foreground">
+            Weighted across {health.categories.length} analysis surfaces
+          </p>
         </div>
-      </Card>
+        <ReportExport report={report} insights={insights} />
+      </div>
 
-      {/* Breakdown */}
-      <Card className="flex flex-col justify-center gap-4 p-6">
-        <h3 className="text-sm font-semibold">Score breakdown</h3>
-        <BreakdownBar label="Lint" value={health.breakdown.lint} />
-        <BreakdownBar label="Types" value={health.breakdown.types} />
-        <BreakdownBar label="Security" value={health.breakdown.security} />
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Health score */}
+        <Card className="flex flex-col items-center justify-center gap-4 p-6">
+          <HealthRing score={health.score} grade={health.grade} />
+          <div className="flex items-center gap-2 text-sm">
+            {delta != null && (
+              <span
+                className="font-mono tabular-nums"
+                style={{ color: delta >= 0 ? "var(--sev-ok)" : "var(--sev-critical)" }}
+              >
+                {delta >= 0 ? "+" : ""}
+                {delta}
+              </span>
+            )}
+            <span className="text-muted-foreground">vs previous run</span>
+          </div>
+        </Card>
 
+        {/* Breakdown — every surface, weighted */}
+        <Card className="flex flex-col gap-4 p-6 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Score breakdown</h3>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              score · weight
+            </span>
+          </div>
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            {health.categories.map((c) => (
+              <CategoryBar key={c.key} category={c} />
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
       {/* Trend */}
-      <Card className="flex flex-col gap-3 p-6">
+      <Card className="flex flex-col gap-3 p-6 lg:col-span-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Health trend</h3>
           <span className="text-xs text-muted-foreground">{history.length} runs</span>
@@ -244,6 +285,7 @@ export function OverviewPanel({ report, history }: OverviewPanelProps) {
             <CountList rows={files} emptyLabel="No issues across any files." />
           </div>
         </InsightCard>
+      </div>
       </div>
     </div>
   )

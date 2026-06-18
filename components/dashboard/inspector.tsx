@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   KeyRound,
   Globe,
+  Accessibility,
 } from "lucide-react"
 import {
   Sheet,
@@ -476,6 +477,25 @@ export function InspectorProvider({
                         })}
                       </ul>
                     )}
+                  </div>
+                )}
+
+                {/* Accessibility violation metadata */}
+                {issue.a11y && (
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel icon={Accessibility}>WCAG details</SectionLabel>
+                    <div className="rounded-sm border border-border bg-card">
+                      <div className="flex items-center gap-2 border-b border-border px-3 py-2 font-mono text-xs">
+                        <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-foreground">{issue.a11y.rule}</span>
+                        <span className="truncate text-muted-foreground">{issue.a11y.selector}</span>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-px bg-border font-mono text-xs sm:grid-cols-4">
+                        <MetaCell label="impact" value={issue.a11y.impact} highlight={issue.a11y.impact === "critical"} />
+                        <MetaCell label="principle" value={issue.a11y.principle} />
+                        <MetaCell label="nodes" value={String(issue.a11y.nodes)} />
+                        <MetaCell label="criteria" value={issue.a11y.wcag.filter((w) => /^\d/.test(w))[0] ?? "—"} />
+                      </dl>
+                    </div>
                   </div>
                 )}
 

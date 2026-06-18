@@ -347,6 +347,169 @@ export interface DbResult {
 }
 
 /* ------------------------------------------------------------------ */
+/* Accessibility                                                       */
+/* ------------------------------------------------------------------ */
+
+export type A11yImpact = "critical" | "serious" | "moderate" | "minor"
+
+/** One of the four WCAG principles a violation maps to. */
+export type WcagPrinciple = "Perceivable" | "Operable" | "Understandable" | "Robust"
+
+export interface A11yViolation {
+  id: string
+  /** axe-core rule id, e.g. "color-contrast". */
+  rule: string
+  impact: A11yImpact
+  principle: WcagPrinciple
+  /** WCAG success criteria, e.g. ["1.4.3", "WCAG 2.1 AA"]. */
+  wcag: string[]
+  description: string
+  /** How to fix it, short form. */
+  help: string
+  helpUrl: string
+  filePath: string
+  line: number
+  /** CSS selector of the offending node. */
+  selector: string
+  /** Number of nodes affected by this rule on the page. */
+  nodes: number
+  recommendation: string
+  snippet?: { startLine: number; code: string }
+}
+
+export interface A11yResult {
+  /** 0–100 accessibility score. */
+  score: number
+  violations: A11yViolation[]
+  /** Count of axe checks that passed. */
+  passes: number
+  /** Checks that need manual review. */
+  incomplete: number
+  counts: { critical: number; serious: number; moderate: number; minor: number }
+  byPrinciple: { principle: WcagPrinciple; count: number }[]
+}
+
+/* ------------------------------------------------------------------ */
+/* Performance                                                         */
+/* ------------------------------------------------------------------ */
+
+export type VitalRating = "good" | "needs-improvement" | "poor"
+
+export interface WebVital {
+  id: "LCP" | "INP" | "CLS" | "FCP" | "TTFB"
+  label: string
+  value: number
+  unit: string
+  rating: VitalRating
+  /** Good ≤ good; poor ≥ poor (in the vital's unit). */
+  threshold: { good: number; poor: number }
+}
+
+export interface BundleRoute {
+  route: string
+  /** Route-specific JS in KB. */
+  sizeKb: number
+  /** First Load JS (route + shared) in KB. */
+  firstLoadKb: number
+  rating: VitalRating
+}
+
+export type PerfIssueKind =
+  | "large-bundle"
+  | "render-blocking"
+  | "unoptimized-image"
+  | "no-memo"
+  | "large-dependency"
+  | "duplicate-dependency"
+  | "no-code-split"
+  | "sync-script"
+  | "layout-shift"
+
+export interface PerfFinding {
+  id: string
+  kind: PerfIssueKind
+  severity: Severity
+  title: string
+  detail: string
+  filePath: string
+  line?: number
+  recommendation: string
+  /** Estimated KB saved if resolved. */
+  estimatedSavingKb?: number
+  snippet?: { startLine: number; code: string }
+}
+
+export interface PerfResult {
+  /** 0–100 performance score (Lighthouse-style). */
+  score: number
+  vitals: WebVital[]
+  bundles: BundleRoute[]
+  findings: PerfFinding[]
+  /** Total First Load JS shared across routes, in KB. */
+  totalBundleKb: number
+  counts: { findings: number }
+}
+
+/* ------------------------------------------------------------------ */
+/* Tests & Coverage                                                    */
+/* ------------------------------------------------------------------ */
+
+export type TestStatus = "passed" | "failed" | "skipped"
+
+export interface TestSuite {
+  id: string
+  name: string
+  filePath: string
+  total: number
+  passed: number
+  failed: number
+  skipped: number
+  durationMs: number
+  status: TestStatus
+}
+
+export type TestIssueKind = "failing" | "flaky" | "slow" | "uncovered" | "no-tests"
+
+export interface TestFinding {
+  id: string
+  kind: TestIssueKind
+  severity: Severity
+  title: string
+  detail: string
+  filePath: string
+  line?: number
+  recommendation: string
+  snippet?: { startLine: number; code: string }
+}
+
+export interface CoverageFile {
+  filePath: string
+  /** Coverage percentages. */
+  lines: number
+  functions: number
+  branches: number
+  statements: number
+  uncoveredLines?: number[]
+}
+
+export interface TestsResult {
+  framework: string
+  coverage: { lines: number; functions: number; branches: number; statements: number }
+  suites: TestSuite[]
+  findings: TestFinding[]
+  /** Per-file coverage, typically sorted lowest-first. */
+  files: CoverageFile[]
+  counts: {
+    total: number
+    passed: number
+    failed: number
+    skipped: number
+    suites: number
+    durationMs: number
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Aggregate                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -357,6 +520,9 @@ export interface ProjectInsights {
   setup: SetupResult
   docs: DocsResult
   database: DbResult
+  accessibility: A11yResult
+  performance: PerfResult
+  tests: TestsResult
 }
 
 /* ================================================================== */
@@ -1174,6 +1340,366 @@ export const projectInsights: ProjectInsights = {
         fullScan: false,
         note: "Healthy — sub-millisecond cache reads.",
       },
+    ],
+  },
+
+  accessibility: {
+    score: 74,
+    passes: 96,
+    incomplete: 5,
+    counts: { critical: 1, serious: 3, moderate: 2, minor: 2 },
+    byPrinciple: [
+      { principle: "Perceivable", count: 4 },
+      { principle: "Operable", count: 2 },
+      { principle: "Understandable", count: 1 },
+      { principle: "Robust", count: 1 },
+    ],
+    violations: [
+      {
+        id: "a11y1",
+        rule: "color-contrast",
+        impact: "serious",
+        principle: "Perceivable",
+        wcag: ["1.4.3", "WCAG 2.1 AA"],
+        description: "Elements must meet minimum color contrast ratio thresholds",
+        help: "Text contrast of 3.8:1 is below the 4.5:1 minimum for normal text.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/color-contrast",
+        filePath: "components/marketing/hero.tsx",
+        line: 42,
+        selector: ".hero-subtitle",
+        nodes: 6,
+        recommendation: "Darken the muted foreground token or increase font weight/size to reach 4.5:1.",
+        snippet: {
+          startLine: 42,
+          code: '<p className="hero-subtitle text-muted-foreground/70">Ship better code, faster</p>',
+        },
+      },
+      {
+        id: "a11y2",
+        rule: "image-alt",
+        impact: "critical",
+        principle: "Perceivable",
+        wcag: ["1.1.1", "WCAG 2.0 A"],
+        description: "Images must have alternate text",
+        help: "3 <img> elements have no alt attribute, so screen readers announce only the file name.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/image-alt",
+        filePath: "components/product/gallery.tsx",
+        line: 28,
+        selector: "img.thumb",
+        nodes: 3,
+        recommendation: "Add descriptive alt text, or alt=\"\" for purely decorative images.",
+        snippet: {
+          startLine: 28,
+          code: "<img src={thumb.src} className=\"thumb\" />",
+        },
+      },
+      {
+        id: "a11y3",
+        rule: "button-name",
+        impact: "critical",
+        principle: "Robust",
+        wcag: ["4.1.2", "WCAG 2.0 A"],
+        description: "Buttons must have discernible text",
+        help: "Icon-only buttons have no accessible name for assistive technology.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/button-name",
+        filePath: "components/dashboard/toolbar.tsx",
+        line: 64,
+        selector: "button.icon-btn",
+        nodes: 4,
+        recommendation: "Add aria-label or visually-hidden text describing the action.",
+        snippet: {
+          startLine: 64,
+          code: '<button className="icon-btn"><Trash className="size-4" /></button>',
+        },
+      },
+      {
+        id: "a11y4",
+        rule: "label",
+        impact: "serious",
+        principle: "Perceivable",
+        wcag: ["1.3.1", "4.1.2", "WCAG 2.0 A"],
+        description: "Form elements must have labels",
+        help: "The search input has placeholder text but no associated <label>.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/label",
+        filePath: "components/search/search-bar.tsx",
+        line: 17,
+        selector: "input[type=search]",
+        nodes: 1,
+        recommendation: "Associate a <label htmlFor> or add aria-label to the input.",
+        snippet: {
+          startLine: 17,
+          code: '<input type="search" placeholder="Search…" />',
+        },
+      },
+      {
+        id: "a11y5",
+        rule: "link-name",
+        impact: "serious",
+        principle: "Operable",
+        wcag: ["2.4.4", "4.1.2", "WCAG 2.0 A"],
+        description: "Links must have discernible text",
+        help: '2 "Read more" links share identical text with no context, ambiguous out of order.',
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/link-name",
+        filePath: "components/blog/post-card.tsx",
+        line: 53,
+        selector: "a.read-more",
+        nodes: 2,
+        recommendation: "Add an aria-label that includes the post title, e.g. \"Read more about …\".",
+      },
+      {
+        id: "a11y6",
+        rule: "heading-order",
+        impact: "moderate",
+        principle: "Perceivable",
+        wcag: ["1.3.1"],
+        description: "Heading levels should only increase by one",
+        help: "The page jumps from <h2> to <h4>, skipping <h3> and breaking the outline.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/heading-order",
+        filePath: "app/docs/page.tsx",
+        line: 88,
+        selector: "h4",
+        nodes: 1,
+        recommendation: "Use sequential heading levels so assistive tech can build a correct outline.",
+      },
+      {
+        id: "a11y7",
+        rule: "aria-required-attr",
+        impact: "moderate",
+        principle: "Robust",
+        wcag: ["4.1.2"],
+        description: "Required ARIA attributes must be provided",
+        help: 'A role="switch" element is missing aria-checked.',
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/aria-required-attr",
+        filePath: "components/settings/toggle.tsx",
+        line: 12,
+        selector: '[role=switch]',
+        nodes: 1,
+        recommendation: "Add aria-checked reflecting the current state, or use a native checkbox.",
+      },
+      {
+        id: "a11y8",
+        rule: "tabindex",
+        impact: "minor",
+        principle: "Operable",
+        wcag: ["2.4.3"],
+        description: "Avoid positive tabindex values",
+        help: "tabindex={3} forces a non-DOM focus order that confuses keyboard users.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/tabindex",
+        filePath: "components/checkout/form.tsx",
+        line: 31,
+        selector: "input[name=zip]",
+        nodes: 1,
+        recommendation: "Remove positive tabindex and rely on natural DOM order.",
+      },
+      {
+        id: "a11y9",
+        rule: "html-has-lang",
+        impact: "minor",
+        principle: "Understandable",
+        wcag: ["3.1.1", "WCAG 2.0 A"],
+        description: "The <html> element must have a lang attribute",
+        help: "No lang attribute means screen readers can't pick the correct pronunciation.",
+        helpUrl: "https://dequeuniversity.com/rules/axe/4.8/html-has-lang",
+        filePath: "app/layout.tsx",
+        line: 22,
+        selector: "html",
+        nodes: 1,
+        recommendation: 'Add lang="en" (or the appropriate locale) to the <html> tag.',
+        snippet: { startLine: 22, code: "<html className=\"bg-background\">" },
+      },
+    ],
+  },
+
+  performance: {
+    score: 68,
+    totalBundleKb: 312,
+    counts: { findings: 7 },
+    vitals: [
+      { id: "LCP", label: "Largest Contentful Paint", value: 3.4, unit: "s", rating: "needs-improvement", threshold: { good: 2.5, poor: 4.0 } },
+      { id: "INP", label: "Interaction to Next Paint", value: 290, unit: "ms", rating: "needs-improvement", threshold: { good: 200, poor: 500 } },
+      { id: "CLS", label: "Cumulative Layout Shift", value: 0.21, unit: "", rating: "poor", threshold: { good: 0.1, poor: 0.25 } },
+      { id: "FCP", label: "First Contentful Paint", value: 1.6, unit: "s", rating: "good", threshold: { good: 1.8, poor: 3.0 } },
+      { id: "TTFB", label: "Time to First Byte", value: 0.7, unit: "s", rating: "good", threshold: { good: 0.8, poor: 1.8 } },
+    ],
+    bundles: [
+      { route: "/", sizeKb: 142, firstLoadKb: 312, rating: "poor" },
+      { route: "/dashboard", sizeKb: 98, firstLoadKb: 268, rating: "needs-improvement" },
+      { route: "/products/[id]", sizeKb: 64, firstLoadKb: 234, rating: "needs-improvement" },
+      { route: "/blog/[slug]", sizeKb: 38, firstLoadKb: 208, rating: "good" },
+      { route: "/login", sizeKb: 21, firstLoadKb: 191, rating: "good" },
+    ],
+    findings: [
+      {
+        id: "perf1",
+        kind: "large-dependency",
+        severity: "high",
+        title: "moment.js adds 144 KB to the homepage bundle",
+        detail: "moment is imported on the landing page for a single date format. It ships all locales and is not tree-shakeable.",
+        filePath: "components/marketing/hero.tsx",
+        line: 4,
+        recommendation: "Replace moment with date-fns or the native Intl.DateTimeFormat to cut ~140 KB.",
+        estimatedSavingKb: 140,
+        snippet: { startLine: 4, code: "import moment from 'moment'" },
+      },
+      {
+        id: "perf2",
+        kind: "unoptimized-image",
+        severity: "high",
+        title: "Hero image served as unoptimized 1.8 MB PNG",
+        detail: "A raw <img> loads a 1.8 MB PNG above the fold, dominating LCP. next/image with responsive sizing is not used.",
+        filePath: "components/marketing/hero.tsx",
+        line: 51,
+        recommendation: "Use next/image with priority and a modern format (AVIF/WebP) plus width/height to reserve space.",
+        estimatedSavingKb: 1600,
+        snippet: { startLine: 51, code: '<img src="/hero.png" className="w-full" />' },
+      },
+      {
+        id: "perf3",
+        kind: "layout-shift",
+        severity: "high",
+        title: "Web font swap causes 0.21 CLS",
+        detail: "A late-loading web font without size-adjust reflows the hero text, contributing most of the page's layout shift.",
+        filePath: "app/layout.tsx",
+        line: 8,
+        recommendation: "Use next/font (self-hosted, with font-display: swap and metric overrides) to eliminate the shift.",
+        estimatedSavingKb: 0,
+      },
+      {
+        id: "perf4",
+        kind: "no-code-split",
+        severity: "medium",
+        title: "Charts library loaded eagerly on every route",
+        detail: "recharts (78 KB) is imported in a shared layout, so it ships even on routes that render no charts.",
+        filePath: "components/layout/shell.tsx",
+        line: 11,
+        recommendation: "Lazy-load the chart components with next/dynamic and ssr: false.",
+        estimatedSavingKb: 78,
+        snippet: { startLine: 11, code: "import { AreaChart } from '@/components/charts'" },
+      },
+      {
+        id: "perf5",
+        kind: "render-blocking",
+        severity: "medium",
+        title: "Synchronous third-party analytics script",
+        detail: "A blocking <script> for analytics sits in the document head and delays first paint by ~180 ms.",
+        filePath: "app/layout.tsx",
+        line: 30,
+        recommendation: 'Load it with next/script using strategy="afterInteractive" or "lazyOnload".',
+        estimatedSavingKb: 0,
+        snippet: { startLine: 30, code: '<script src="https://cdn.analytics.example/a.js"></script>' },
+      },
+      {
+        id: "perf6",
+        kind: "no-memo",
+        severity: "low",
+        title: "Expensive list re-renders on every keystroke",
+        detail: "The product grid re-sorts 800 items on each parent render because the computation isn't memoized.",
+        filePath: "components/product/grid.tsx",
+        line: 22,
+        recommendation: "Wrap the sort in useMemo keyed on the input list and sort order.",
+        estimatedSavingKb: 0,
+        snippet: { startLine: 22, code: "const sorted = products.slice().sort(compare)" },
+      },
+      {
+        id: "perf7",
+        kind: "duplicate-dependency",
+        severity: "low",
+        title: "Two versions of date utilities bundled",
+        detail: "Both moment and dayjs resolve into the client bundle through different dependencies, duplicating ~12 KB.",
+        filePath: "package.json",
+        line: 1,
+        recommendation: "Standardize on a single date library and dedupe the lockfile.",
+        estimatedSavingKb: 12,
+      },
+    ],
+  },
+
+  tests: {
+    framework: "Vitest",
+    coverage: { lines: 62, functions: 58, branches: 49, statements: 63 },
+    counts: { total: 184, passed: 171, failed: 5, skipped: 8, suites: 24, durationMs: 14820 },
+    suites: [
+      { id: "ts1", name: "cart.test.ts", filePath: "lib/__tests__/cart.test.ts", total: 22, passed: 20, failed: 2, skipped: 0, durationMs: 1840, status: "failed" },
+      { id: "ts2", name: "checkout.test.tsx", filePath: "components/__tests__/checkout.test.tsx", total: 18, passed: 15, failed: 1, skipped: 2, durationMs: 3120, status: "failed" },
+      { id: "ts3", name: "auth.test.ts", filePath: "lib/__tests__/auth.test.ts", total: 14, passed: 12, failed: 2, skipped: 0, durationMs: 990, status: "failed" },
+      { id: "ts4", name: "money.test.ts", filePath: "lib/__tests__/money.test.ts", total: 31, passed: 31, failed: 0, skipped: 0, durationMs: 210, status: "passed" },
+      { id: "ts5", name: "api.test.ts", filePath: "lib/__tests__/api.test.ts", total: 26, passed: 24, failed: 0, skipped: 2, durationMs: 2670, status: "passed" },
+      { id: "ts6", name: "utils.test.ts", filePath: "lib/__tests__/utils.test.ts", total: 19, passed: 19, failed: 0, skipped: 0, durationMs: 140, status: "passed" },
+      { id: "ts7", name: "orders.test.ts", filePath: "lib/__tests__/orders.test.ts", total: 16, passed: 14, failed: 0, skipped: 2, durationMs: 1520, status: "passed" },
+      { id: "ts8", name: "search.test.tsx", filePath: "components/__tests__/search.test.tsx", total: 38, passed: 36, failed: 0, skipped: 2, durationMs: 4330, status: "passed" },
+    ],
+    findings: [
+      {
+        id: "test1",
+        kind: "failing",
+        severity: "high",
+        title: "cart applies discount before tax incorrectly",
+        detail: "Expected subtotal 90.00 after a 10% discount on 100.00, received 100.00. The discount is applied after tax instead of before.",
+        filePath: "lib/__tests__/cart.test.ts",
+        line: 48,
+        recommendation: "Fix the order of operations in applyDiscount() so percentage discounts run on the pre-tax subtotal.",
+        snippet: { startLine: 46, code: "  expect(cart.subtotal).toBe(90.0)\n  // Received: 100.0\n  const cart = applyDiscount(base, { kind: 'percent', amount: 10 })" },
+      },
+      {
+        id: "test2",
+        kind: "failing",
+        severity: "high",
+        title: "auth: expired token is treated as valid",
+        detail: "verifySession() returns the user for a token whose exp is in the past, a security-relevant test failure.",
+        filePath: "lib/__tests__/auth.test.ts",
+        line: 71,
+        recommendation: "Compare exp against Date.now() in seconds and reject expired tokens before returning the session.",
+      },
+      {
+        id: "test3",
+        kind: "flaky",
+        severity: "medium",
+        title: "checkout test fails intermittently (~18% of runs)",
+        detail: "The Stripe redirect assertion depends on an un-awaited promise, so it passes or fails based on timing.",
+        filePath: "components/__tests__/checkout.test.tsx",
+        line: 102,
+        recommendation: "Await the navigation and use findBy* queries instead of getBy* to wait for async UI.",
+      },
+      {
+        id: "test4",
+        kind: "slow",
+        severity: "low",
+        title: "search suite takes 4.3 s",
+        detail: "search.test.tsx renders the full results page 38 times without mocking the network layer.",
+        filePath: "components/__tests__/search.test.tsx",
+        line: 1,
+        recommendation: "Mock the fetch layer and share a render setup to cut suite time substantially.",
+      },
+      {
+        id: "test5",
+        kind: "uncovered",
+        severity: "medium",
+        title: "Payment webhook handler has 0% coverage",
+        detail: "app/api/webhooks/stripe/route.ts contains signature verification and order fulfillment logic with no tests.",
+        filePath: "app/api/webhooks/stripe/route.ts",
+        line: 1,
+        recommendation: "Add tests for valid/invalid signatures and idempotent fulfillment before relying on it in production.",
+      },
+      {
+        id: "test6",
+        kind: "no-tests",
+        severity: "low",
+        title: "Discount engine has no test file",
+        detail: "lib/discount.ts implements stacking rules and edge cases but has no corresponding test suite.",
+        filePath: "lib/discount.ts",
+        line: 1,
+        recommendation: "Create lib/__tests__/discount.test.ts covering stacking, caps, and expiry.",
+      },
+    ],
+    files: [
+      { filePath: "app/api/webhooks/stripe/route.ts", lines: 0, functions: 0, branches: 0, statements: 0, uncoveredLines: [1, 2, 3, 4, 5] },
+      { filePath: "lib/discount.ts", lines: 0, functions: 0, branches: 0, statements: 0 },
+      { filePath: "lib/orders.ts", lines: 34, functions: 40, branches: 22, statements: 36, uncoveredLines: [45, 46, 51, 62, 78] },
+      { filePath: "components/checkout/form.tsx", lines: 41, functions: 50, branches: 30, statements: 44 },
+      { filePath: "lib/cart.ts", lines: 58, functions: 62, branches: 44, statements: 60 },
+      { filePath: "lib/auth.ts", lines: 67, functions: 70, branches: 55, statements: 68 },
+      { filePath: "lib/api.ts", lines: 81, functions: 85, branches: 72, statements: 83 },
+      { filePath: "lib/money.ts", lines: 98, functions: 100, branches: 94, statements: 98 },
     ],
   },
 }
