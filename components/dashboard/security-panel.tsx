@@ -21,10 +21,10 @@ function DiffBlock({ fix }: { fix: string }) {
             <div
               key={i}
               className={cn(
-                "flex whitespace-pre px-3",
-                isAdd && "bg-[color:var(--sev-ok)]/10 text-[color:var(--sev-ok)]",
-                isDel && "bg-[color:var(--sev-critical)]/10 text-[color:var(--sev-critical)]",
-                !isAdd && !isDel && "text-foreground/70",
+                "flex whitespace-pre border-l-2 px-3",
+                isAdd && "border-foreground bg-foreground/[0.07] text-foreground",
+                isDel && "border-muted-foreground/40 text-muted-foreground line-through decoration-muted-foreground/40",
+                !isAdd && !isDel && "border-transparent text-foreground/60",
               )}
             >
               {line || " "}
