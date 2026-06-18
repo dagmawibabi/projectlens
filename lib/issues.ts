@@ -5,9 +5,28 @@ import type {
   DependencyFinding,
   Severity,
 } from "./schema"
-import type { EnvVariable, NetworkCall, GitIssue, DbFinding } from "./project-insights"
+import type {
+  EnvVariable,
+  NetworkCall,
+  GitIssue,
+  DbFinding,
+  A11yViolation,
+  PerfFinding,
+  TestFinding,
+} from "./project-insights"
 
-export type IssueSource = "lint" | "types" | "security" | "deps" | "env" | "network" | "git" | "database"
+export type IssueSource =
+  | "lint"
+  | "types"
+  | "security"
+  | "deps"
+  | "env"
+  | "network"
+  | "git"
+  | "database"
+  | "a11y"
+  | "perf"
+  | "tests"
 
 /** A normalized issue used by the shared detail sheet. */
 export interface Issue {
@@ -67,6 +86,25 @@ export interface Issue {
     engine: string
     kind: string
     target?: string
+  }
+  /** Accessibility-violation metadata, present when source === "a11y". */
+  a11y?: {
+    rule: string
+    impact: string
+    principle: string
+    wcag: string[]
+    helpUrl: string
+    selector: string
+    nodes: number
+  }
+  /** Performance-finding metadata, present when source === "perf". */
+  perf?: {
+    kind: string
+    estimatedSavingKb?: number
+  }
+  /** Test-finding metadata, present when source === "tests". */
+  test?: {
+    kind: string
   }
 }
 
@@ -230,6 +268,66 @@ export function gitToIssue(g: GitIssue): Issue {
     category: g.kind,
     description: g.detail,
     recommendation: g.recommendation,
+  }
+}
+
+const A11Y_IMPACT_SEVERITY: Record<string, Severity> = {
+  critical: "critical",
+  serious: "high",
+  moderate: "medium",
+  minor: "low",
+}
+
+export function a11yToIssue(v: A11yViolation): Issue {
+  return {
+    source: "a11y",
+    severity: A11Y_IMPACT_SEVERITY[v.impact] ?? "medium",
+    title: v.help,
+    filePath: v.filePath,
+    line: v.line,
+    category: v.rule,
+    description: `${v.description}. ${v.nodes} ${v.nodes === 1 ? "element is" : "elements are"} affected (${v.selector}).`,
+    recommendation: v.recommendation,
+    snippet: v.snippet,
+    a11y: {
+      rule: v.rule,
+      impact: v.impact,
+      principle: v.principle,
+      wcag: v.wcag,
+      helpUrl: v.helpUrl,
+      selector: v.selector,
+      nodes: v.nodes,
+    },
+  }
+}
+
+export function perfToIssue(f: PerfFinding): Issue {
+  return {
+    source: "perf",
+    severity: f.severity,
+    title: f.title,
+    filePath: f.filePath,
+    line: f.line ?? 1,
+    category: f.kind,
+    description: f.detail,
+    recommendation: f.recommendation,
+    snippet: f.snippet,
+    perf: { kind: f.kind, estimatedSavingKb: f.estimatedSavingKb },
+  }
+}
+
+export function testToIssue(f: TestFinding): Issue {
+  return {
+    source: "tests",
+    severity: f.severity,
+    title: f.title,
+    filePath: f.filePath,
+    line: f.line ?? 1,
+    category: f.kind,
+    description: f.detail,
+    recommendation: f.recommendation,
+    snippet: f.snippet,
+    test: { kind: f.kind },
   }
 }
 
@@ -405,6 +503,58 @@ export function issueDocs(issue: Issue): DocLink[] {
     )
     if (issue.category === "large-file") {
       links.push({ label: "Git LFS", href: "https://git-lfs.com/", kind: "Git LFS" })
+    }
+  }
+
+  if (issue.source === "a11y" && issue.a11y) {
+    links.push(
+      { label: `axe: ${issue.a11y.rule}`, href: issue.a11y.helpUrl, kind: "Deque" },
+      { label: "WAI-ARIA Authoring Practices", href: "https://www.w3.org/WAI/ARIA/apg/", kind: "W3C" },
+      { label: "MDN: Accessibility", href: "https://developer.mozilla.org/en-US/docs/Web/Accessibility", kind: "MDN" },
+    )
+    // Link directly to the relevant WCAG success criterion when we have one.
+    const sc = issue.a11y.wcag.find((w) => /^\d/.test(w))
+    if (sc) {
+      links.push({
+        label: `WCAG ${sc}`,
+        href: `https://www.w3.org/WAI/WCAG21/Understanding/${sc.replace(/\./g, "")}`,
+        kind: "WCAG",
+      })
+    }
+  }
+
+  if (issue.source === "perf") {
+    links.push(
+      { label: "web.dev: Core Web Vitals", href: "https://web.dev/articles/vitals", kind: "web.dev" },
+      { label: "Next.js: Optimizing", href: "https://nextjs.org/docs/app/building-your-application/optimizing", kind: "Next.js" },
+    )
+    if (issue.perf?.kind === "unoptimized-image") {
+      links.push({ label: "next/image", href: "https://nextjs.org/docs/app/api-reference/components/image", kind: "Next.js" })
+    }
+    if (issue.perf?.kind === "large-dependency" || issue.perf?.kind === "duplicate-dependency") {
+      links.push({ label: "Bundlephobia", href: "https://bundlephobia.com/", kind: "Bundlephobia" })
+    }
+    if (issue.perf?.kind === "layout-shift") {
+      links.push({ label: "web.dev: Optimize CLS", href: "https://web.dev/articles/optimize-cls", kind: "web.dev" })
+    }
+    if (issue.perf?.kind === "render-blocking" || issue.perf?.kind === "sync-script") {
+      links.push({ label: "next/script", href: "https://nextjs.org/docs/app/api-reference/components/script", kind: "Next.js" })
+    }
+    if (issue.perf?.kind === "no-code-split" || issue.perf?.kind === "no-memo") {
+      links.push({ label: "React: lazy & Suspense", href: "https://react.dev/reference/react/lazy", kind: "React" })
+    }
+  }
+
+  if (issue.source === "tests") {
+    links.push(
+      { label: "Vitest docs", href: "https://vitest.dev/guide/", kind: "Vitest" },
+      { label: "Testing Library queries", href: "https://testing-library.com/docs/queries/about/", kind: "Testing Library" },
+    )
+    if (issue.test?.kind === "flaky") {
+      links.push({ label: "Vitest: async & timers", href: "https://vitest.dev/guide/mocking.html#timers", kind: "Vitest" })
+    }
+    if (issue.test?.kind === "uncovered" || issue.test?.kind === "no-tests") {
+      links.push({ label: "Vitest: coverage", href: "https://vitest.dev/guide/coverage.html", kind: "Vitest" })
     }
   }
 
