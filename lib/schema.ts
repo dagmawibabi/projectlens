@@ -53,10 +53,46 @@ export interface TypeDiagnostic {
   related: { message: string; depth: number }[]
 }
 
+export type TypeKind = "interface" | "type" | "enum" | "class" | "function"
+
+/** A property/member of a declared type. */
+export interface TypeMember {
+  name: string
+  type: string
+  optional?: boolean
+  readonly?: boolean
+  /** Doc comment, if any. */
+  doc?: string
+}
+
+/** A type/interface/enum declared in the project source. */
+export interface TypeDefinition {
+  id: string
+  name: string
+  kind: TypeKind
+  filePath: string
+  line: number
+  /** Whether the symbol is exported. */
+  exported: boolean
+  /** Number of places this type is referenced across the codebase. */
+  references: number
+  /** Generic parameters, e.g. ["T", "K extends string"]. */
+  generics?: string[]
+  /** Types this one extends / implements / unions. */
+  extendsFrom?: string[]
+  members: TypeMember[]
+  /** Raw declaration source for the detail view. */
+  source: string
+  /** Doc comment for the type itself. */
+  doc?: string
+}
+
 export interface TypeCheckResult {
   diagnostics: TypeDiagnostic[]
   unavailable?: boolean
   note?: string
+  /** Declared types discovered in the project, for the explorer. */
+  definitions?: TypeDefinition[]
 }
 
 export type SecurityCategory =

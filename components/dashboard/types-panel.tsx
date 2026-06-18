@@ -1,12 +1,14 @@
 "use client"
 
-import { useMemo } from "react"
-import { ChevronRight, FileCode2, CheckCircle2, ListTree } from "lucide-react"
+import { useMemo, useState } from "react"
+import { ChevronRight, FileCode2, CheckCircle2, ListTree, Braces, AlertCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { InsightCard, CountList } from "./insights"
 import { FileLink, useInspector } from "./inspector"
+import { TypeExplorer } from "./type-explorer"
 import { typeToIssue } from "@/lib/issues"
 import type { TypeCheckResult, TypeDiagnostic } from "@/lib/schema"
+import { cn } from "@/lib/utils"
 
 function DiagnosticItem({ diag }: { diag: TypeDiagnostic }) {
   const { viewIssue } = useInspector()
@@ -51,6 +53,53 @@ function DiagnosticItem({ diag }: { diag: TypeDiagnostic }) {
 }
 
 export function TypesPanel({ types }: { types: TypeCheckResult }) {
+  const definitions = types.definitions ?? []
+  const [view, setView] = useState<"diagnostics" | "explorer">("diagnostics")
+
+  if (types.unavailable) {
+    return (
+      <Card className="p-6 text-sm text-muted-foreground">
+        TypeScript was not detected in this project. {types.note}
+      </Card>
+    )
+  }
+
+  const subTabs: { key: "diagnostics" | "explorer"; label: string; icon: typeof Braces; count: number }[] = [
+    { key: "diagnostics", label: "Diagnostics", icon: AlertCircle, count: types.diagnostics.length },
+    { key: "explorer", label: "Type explorer", icon: Braces, count: definitions.length },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-1 self-start rounded-sm border border-border bg-card p-1">
+        {subTabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setView(t.key)}
+            disabled={t.key === "explorer" && definitions.length === 0}
+            className={cn(
+              "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-40",
+              view === t.key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <t.icon className="size-4" />
+            {t.label}
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {view === "explorer" && definitions.length > 0 ? (
+        <TypeExplorer definitions={definitions} />
+      ) : (
+        <DiagnosticsView types={types} />
+      )}
+    </div>
+  )
+}
+
+function DiagnosticsView({ types }: { types: TypeCheckResult }) {
   const fileRows = useMemo(() => {
     const map = new Map<string, number>()
     for (const d of types.diagnostics) map.set(d.filePath, (map.get(d.filePath) ?? 0) + 1)
@@ -62,14 +111,6 @@ export function TypesPanel({ types }: { types: TypeCheckResult }) {
     for (const d of types.diagnostics) map.set(d.code, (map.get(d.code) ?? 0) + 1)
     return [...map.entries()].map(([key, count]) => ({ key, label: key, count })).sort((a, b) => b.count - a.count)
   }, [types.diagnostics])
-
-  if (types.unavailable) {
-    return (
-      <Card className="p-6 text-sm text-muted-foreground">
-        TypeScript was not detected in this project. {types.note}
-      </Card>
-    )
-  }
 
   if (types.diagnostics.length === 0) {
     return (
