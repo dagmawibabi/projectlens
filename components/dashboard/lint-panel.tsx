@@ -1,12 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { X } from "lucide-react"
+import { X, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CodeBlock } from "./code-block"
 import { InsightCard, ProportionBar, CountList } from "./insights"
+import { FileLink, useInspector } from "./inspector"
 import { severityStyle } from "@/lib/severity"
+import { lintToIssue } from "@/lib/issues"
 import type { LintResult, LintMessage } from "@/lib/schema"
 
 type Filter = "all" | "error" | "warning" | "fixable"
@@ -38,25 +39,26 @@ function FilterTab({
 }
 
 function MessageRow({ msg, showFile }: { msg: LintMessage; showFile?: boolean }) {
-  const [open, setOpen] = useState(false)
+  const { viewIssue } = useInspector()
   const sev = severityStyle(msg.severity)
-  const hasSnippet = Boolean(msg.snippet)
 
   return (
     <div className="border-t border-border first:border-t-0">
       <button
         type="button"
-        onClick={() => hasSnippet && setOpen((o) => !o)}
-        className={`flex w-full items-start gap-3 px-4 py-3 text-left ${hasSnippet ? "hover:bg-secondary/40" : "cursor-default"}`}
+        onClick={() => viewIssue(lintToIssue(msg))}
+        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40"
       >
         <span className={`mt-1 size-2 shrink-0 rounded-full ${sev.dot}`} aria-hidden />
-        <span className="flex-1">
+        <span className="min-w-0 flex-1">
           <span className="text-sm text-foreground">{msg.message}</span>
           <span className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-muted-foreground">
-            {showFile && <span className="text-foreground/80">{msg.filePath}</span>}
-            <span>
-              {msg.line}:{msg.column}
-            </span>
+            {showFile && <FileLink path={msg.filePath} line={msg.line} column={msg.column} />}
+            {!showFile && (
+              <span>
+                {msg.line}:{msg.column}
+              </span>
+            )}
             {!showFile && msg.ruleId && (
               <span className={`rounded-sm px-1.5 py-0.5 ${sev.bg} ${sev.text}`}>{msg.ruleId}</span>
             )}
@@ -67,17 +69,8 @@ function MessageRow({ msg, showFile }: { msg: LintMessage; showFile?: boolean })
             )}
           </span>
         </span>
+        <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       </button>
-      {open && msg.snippet && (
-        <div className="px-4 pb-3">
-          <CodeBlock startLine={msg.snippet.startLine} code={msg.snippet.code} highlightLine={msg.line} />
-          {msg.fixable && (
-            <p className="mt-2 font-mono text-xs text-muted-foreground">
-              Fix with: <span className="text-foreground">eslint --fix {msg.filePath}</span>
-            </p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -226,7 +219,11 @@ export function LintPanel({ lint }: { lint: LintResult }) {
                 <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-4 py-2.5">
                   <span className="flex min-w-0 items-center gap-2">
                     {headSev && <span className={`size-2 shrink-0 rounded-full ${headSev.dot}`} aria-hidden />}
-                    <span className="truncate font-mono text-sm text-foreground">{key}</span>
+                    {groupBy === "file" ? (
+                      <FileLink path={key} className="truncate text-sm" />
+                    ) : (
+                      <span className="truncate font-mono text-sm text-foreground">{key}</span>
+                    )}
                   </span>
                   <Badge variant="secondary" className="font-mono text-xs">
                     {msgs.length}

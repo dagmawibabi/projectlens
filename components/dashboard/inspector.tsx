@@ -1,0 +1,507 @@
+"use client"
+
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react"
+import {
+  FileCode2,
+  ExternalLink,
+  Copy,
+  Check,
+  ChevronRight,
+  BookOpen,
+  Lightbulb,
+  ListTree,
+  SquareArrowOutUpRight,
+} from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
+import { severityStyle } from "@/lib/severity"
+import { getFileContent } from "@/lib/file-contents"
+import { EDITORS, absolutePath, issueDocs, type Issue } from "@/lib/issues"
+import { cn } from "@/lib/utils"
+
+/* ------------------------------------------------------------------ */
+/* Context                                                             */
+/* ------------------------------------------------------------------ */
+
+interface InspectorContextValue {
+  projectRoot: string
+  viewFile: (filePath: string, line?: number, column?: number) => void
+  viewIssue: (issue: Issue) => void
+}
+
+const InspectorContext = createContext<InspectorContextValue | null>(null)
+
+export function useInspector() {
+  const ctx = useContext(InspectorContext)
+  if (!ctx) throw new Error("useInspector must be used within <InspectorProvider>")
+  return ctx
+}
+
+/* ------------------------------------------------------------------ */
+/* Small building blocks                                               */
+/* ------------------------------------------------------------------ */
+
+function useCopy() {
+  const [copied, setCopied] = useState(false)
+  const copy = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1400)
+    })
+  }, [])
+  return { copied, copy }
+}
+
+/** Dropdown that opens an absolute path at a position in the user's editor. */
+function OpenInIdeMenu({
+  absPath,
+  line,
+  column,
+}: {
+  absPath: string
+  line: number
+  column: number
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground">
+        <SquareArrowOutUpRight className="size-3.5" />
+        Open in IDE
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44">
+        <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider">
+          Open at {line}:{column}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {EDITORS.map((ed) => (
+          <DropdownMenuItem
+            key={ed.id}
+            render={
+              <a href={ed.url(absPath, line, column)}>
+                <FileCode2 className="size-3.5" />
+                {ed.label}
+              </a>
+            }
+          />
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** Full-file code renderer that auto-scrolls to and highlights a line. */
+function FileBody({ code, highlight }: { code: string; highlight?: number }) {
+  const lines = code.replace(/\n$/, "").split("\n")
+  const scrollToRef = useRef<HTMLDivElement | null>(null)
+
+  return (
+    <pre className="overflow-x-auto py-2 font-mono text-xs leading-relaxed">
+      <code className="block">
+        {lines.map((line, i) => {
+          const lineNo = i + 1
+          const isHit = lineNo === highlight
+          return (
+            <div
+              key={lineNo}
+              ref={
+                isHit
+                  ? (el) => {
+                      scrollToRef.current = el
+                      el?.scrollIntoView({ block: "center" })
+                    }
+                  : undefined
+              }
+              className={cn("flex", isHit && "bg-foreground/[0.08]")}
+            >
+              <span
+                className={cn(
+                  "sticky left-0 w-12 shrink-0 select-none bg-popover px-2 text-right tabular-nums",
+                  isHit ? "text-foreground" : "text-muted-foreground/50",
+                )}
+              >
+                {lineNo}
+              </span>
+              <span
+                className={cn(
+                  "flex-1 whitespace-pre pl-3 pr-4",
+                  isHit
+                    ? "border-l-2 border-foreground text-foreground"
+                    : "border-l-2 border-transparent text-foreground/80",
+                )}
+              >
+                {line || " "}
+              </span>
+            </div>
+          )
+        })}
+      </code>
+    </pre>
+  )
+}
+
+function SnippetBlock({ startLine, code, highlight }: { startLine: number; code: string; highlight?: number }) {
+  const lines = code.replace(/\n$/, "").split("\n")
+  return (
+    <pre className="overflow-x-auto rounded-sm border border-border bg-background/60 py-2 font-mono text-xs leading-relaxed">
+      <code className="block">
+        {lines.map((line, i) => {
+          const lineNo = startLine + i
+          const isHit = lineNo === highlight
+          return (
+            <div key={lineNo} className={cn("flex", isHit && "bg-foreground/[0.08]")}>
+              <span className={cn("w-10 shrink-0 select-none px-2 text-right tabular-nums", isHit ? "text-foreground" : "text-muted-foreground/50")}>
+                {lineNo}
+              </span>
+              <span className={cn("flex-1 whitespace-pre pl-3 pr-4", isHit ? "border-l-2 border-foreground text-foreground" : "border-l-2 border-transparent text-foreground/80")}>
+                {line || " "}
+              </span>
+            </div>
+          )
+        })}
+      </code>
+    </pre>
+  )
+}
+
+function DiffBlock({ fix }: { fix: string }) {
+  const lines = fix.replace(/\n$/, "").split("\n")
+  return (
+    <pre className="overflow-x-auto rounded-sm border border-border bg-background/60 py-2 font-mono text-xs leading-relaxed">
+      <code className="block">
+        {lines.map((line, i) => {
+          const isAdd = line.startsWith("+")
+          const isDel = line.startsWith("-")
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex whitespace-pre border-l-2 px-3",
+                isAdd && "border-foreground bg-foreground/[0.07] text-foreground",
+                isDel && "border-muted-foreground/40 text-muted-foreground line-through decoration-muted-foreground/40",
+                !isAdd && !isDel && "border-transparent text-foreground/60",
+              )}
+            >
+              {line || " "}
+            </div>
+          )
+        })}
+      </code>
+    </pre>
+  )
+}
+
+function SectionLabel({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <Icon className="size-3.5" />
+      {children}
+    </p>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Provider                                                            */
+/* ------------------------------------------------------------------ */
+
+interface FileTarget {
+  filePath: string
+  line?: number
+  column?: number
+}
+
+export function InspectorProvider({
+  projectRoot,
+  children,
+}: {
+  projectRoot: string
+  children: React.ReactNode
+}) {
+  const [fileTarget, setFileTarget] = useState<FileTarget | null>(null)
+  const [issue, setIssue] = useState<Issue | null>(null)
+  const { copied, copy } = useCopy()
+
+  const viewFile = useCallback((filePath: string, line?: number, column?: number) => {
+    setFileTarget({ filePath, line, column })
+  }, [])
+  const viewIssue = useCallback((next: Issue) => setIssue(next), [])
+
+  const value = useMemo(
+    () => ({ projectRoot, viewFile, viewIssue }),
+    [projectRoot, viewFile, viewIssue],
+  )
+
+  const fileCode = fileTarget ? getFileContent(fileTarget.filePath) : null
+  const docs = issue ? issueDocs(issue) : []
+  const sev = issue ? severityStyle(issue.severity) : null
+
+  return (
+    <InspectorContext.Provider value={value}>
+      {children}
+
+      {/* File viewer */}
+      <Sheet open={!!fileTarget} onOpenChange={(o) => !o && setFileTarget(null)}>
+        <SheetContent side="right" className="w-full gap-0 p-0 sm:!max-w-3xl">
+          {fileTarget && (
+            <>
+              <SheetHeader className="border-b border-border">
+                <div className="flex items-center gap-2 pr-8">
+                  <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
+                  <SheetTitle className="truncate font-mono text-sm">{fileTarget.filePath}</SheetTitle>
+                </div>
+                <SheetDescription className="sr-only">Source file preview</SheetDescription>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {fileTarget.line != null && (
+                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                      line {fileTarget.line}
+                      {fileTarget.column != null ? `:${fileTarget.column}` : ""}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => copy(absolutePath(projectRoot, fileTarget.filePath))}
+                    className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                    {copied ? "Copied" : "Copy path"}
+                  </button>
+                  <OpenInIdeMenu
+                    absPath={absolutePath(projectRoot, fileTarget.filePath)}
+                    line={fileTarget.line ?? 1}
+                    column={fileTarget.column ?? 1}
+                  />
+                </div>
+              </SheetHeader>
+              <div className="min-h-0 flex-1 overflow-auto">
+                {fileCode ? (
+                  <FileBody code={fileCode} highlight={fileTarget.line} />
+                ) : (
+                  <p className="p-6 text-sm text-muted-foreground">
+                    No preview available for this file in the demo fixture. The installed CLI reads the real file from
+                    disk.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Issue detail */}
+      <Sheet open={!!issue} onOpenChange={(o) => !o && setIssue(null)}>
+        <SheetContent side="right" className="w-full gap-0 p-0 sm:!max-w-2xl">
+          {issue && sev && (
+            <>
+              <SheetHeader className="border-b border-border">
+                <div className="flex flex-wrap items-center gap-2 pr-8">
+                  <Badge className={cn("border-0 font-mono text-[10px] uppercase", sev.bg, sev.text)}>{sev.label}</Badge>
+                  <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                    {issue.source}
+                  </span>
+                  {issue.ruleId && (
+                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {issue.ruleId}
+                    </span>
+                  )}
+                  {issue.code && (
+                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {issue.code}
+                    </span>
+                  )}
+                  {issue.category && (
+                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                      {issue.category}
+                    </span>
+                  )}
+                  {issue.confidence != null && (
+                    <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                      {Math.round(issue.confidence * 100)}% conf.
+                    </span>
+                  )}
+                </div>
+                <SheetTitle className="mt-2 text-pretty text-sm leading-relaxed">{issue.title}</SheetTitle>
+                <SheetDescription className="sr-only">Issue detail</SheetDescription>
+              </SheetHeader>
+
+              <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto p-4">
+                {/* Location */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => viewFile(issue.filePath, issue.line, issue.column)}
+                    className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-foreground transition-colors hover:bg-secondary"
+                  >
+                    <FileCode2 className="size-3.5 text-muted-foreground" />
+                    {issue.filePath}:{issue.line}
+                  </button>
+                  <OpenInIdeMenu
+                    absPath={absolutePath(projectRoot, issue.filePath)}
+                    line={issue.line}
+                    column={issue.column ?? 1}
+                  />
+                  {issue.fixable && (
+                    <span className="rounded-sm bg-[color:var(--sev-ok)]/12 px-2 py-1 font-mono text-[11px] text-[color:var(--sev-ok)]">
+                      auto-fixable
+                    </span>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-2">
+                  <SectionLabel icon={BookOpen}>What&apos;s happening</SectionLabel>
+                  <p className="text-pretty text-sm leading-relaxed text-foreground">{issue.description}</p>
+                </div>
+
+                {/* Snippet */}
+                {issue.snippet && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <SectionLabel icon={FileCode2}>Code</SectionLabel>
+                      <button
+                        type="button"
+                        onClick={() => viewFile(issue.filePath, issue.line, issue.column)}
+                        className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        view full file <ChevronRight className="size-3" />
+                      </button>
+                    </div>
+                    <SnippetBlock startLine={issue.snippet.startLine} code={issue.snippet.code} highlight={issue.line} />
+                  </div>
+                )}
+
+                {/* Diagnostic chain (types) */}
+                {issue.related && issue.related.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel icon={ListTree}>Diagnostic chain</SectionLabel>
+                    <ol className="relative ml-2 border-l border-border">
+                      {issue.related.map((step, i) => (
+                        <li
+                          key={i}
+                          className="relative py-1.5 text-sm leading-relaxed text-muted-foreground"
+                          style={{ paddingLeft: `${step.depth * 12 + 20}px` }}
+                        >
+                          <span
+                            className="absolute top-3 size-1.5 rounded-full bg-muted-foreground/40"
+                            style={{ left: `${step.depth * 12 + 4}px` }}
+                            aria-hidden
+                          />
+                          {step.message}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Recommendation */}
+                {issue.recommendation && (
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel icon={Lightbulb}>How to fix</SectionLabel>
+                    <div className="rounded-sm border border-border bg-card p-3">
+                      <p className="text-pretty text-sm leading-relaxed text-foreground">{issue.recommendation}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Suggested fix diff */}
+                {issue.suggestedFix && (
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel icon={Lightbulb}>Suggested fix</SectionLabel>
+                    <DiffBlock fix={issue.suggestedFix} />
+                  </div>
+                )}
+
+                {/* Auto-fix command */}
+                {issue.source === "lint" && issue.fixable && (
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel icon={Lightbulb}>Auto-fix command</SectionLabel>
+                    <code className="rounded-sm border border-border bg-background/60 px-3 py-2 font-mono text-xs text-foreground">
+                      eslint --fix {issue.filePath}
+                    </code>
+                  </div>
+                )}
+
+                {/* Resources */}
+                {docs.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel icon={BookOpen}>Resources &amp; docs</SectionLabel>
+                    <ul className="flex flex-col gap-1.5">
+                      {docs.map((d) => (
+                        <li key={d.href}>
+                          <a
+                            href={d.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 rounded-sm border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-secondary"
+                          >
+                            <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                              {d.kind}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">{d.label}</span>
+                            <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </InspectorContext.Provider>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* FileLink — a clickable filename that opens the file viewer          */
+/* ------------------------------------------------------------------ */
+
+export function FileLink({
+  path,
+  line,
+  column,
+  className,
+  children,
+}: {
+  path: string
+  line?: number
+  column?: number
+  className?: string
+  children?: React.ReactNode
+}) {
+  const { viewFile } = useInspector()
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        viewFile(path, line, column)
+      }}
+      className={cn(
+        "inline-flex items-center gap-1 font-mono text-xs text-foreground/80 underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground",
+        className,
+      )}
+    >
+      {children ?? (
+        <>
+          {path}
+          {line != null ? `:${line}` : ""}
+        </>
+      )}
+    </button>
+  )
+}

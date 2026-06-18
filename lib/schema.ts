@@ -103,6 +103,53 @@ export interface SecurityResult {
   skipped?: boolean
 }
 
+export type DependencyKind = "direct" | "dev" | "peer" | "transitive"
+
+export type DependencyIssueKind =
+  | "vulnerability"
+  | "outdated"
+  | "deprecated"
+  | "unused"
+  | "missing"
+  | "license"
+
+export interface DependencyFinding {
+  id: string
+  /** Package name. */
+  name: string
+  /** Installed version. */
+  current: string
+  /** Latest published version, when known. */
+  latest?: string
+  /** Where the dependency sits in the tree. */
+  type: DependencyKind
+  kind: DependencyIssueKind
+  severity: Severity
+  /** One-line summary of the issue. */
+  title: string
+  /** Expanded explanation of the problem and its impact. */
+  detail: string
+  /** What the developer should do about it. */
+  recommendation?: string
+  /** Version that resolves the issue (for vulns / outdated). */
+  fixedIn?: string
+  /** Associated CVE identifiers. */
+  cves?: string[]
+  /** SPDX license id, for license findings. */
+  license?: string
+  /** Files where the package is imported (for unused / missing). */
+  usedIn?: string[]
+  /** External reference (advisory, npm page, docs). */
+  reference?: string
+}
+
+export interface DependencyResult {
+  counts: { total: number; direct: number; dev: number; transitive: number }
+  findings: DependencyFinding[]
+  /** The manifest file these findings were derived from. */
+  manifestPath: string
+}
+
 export interface HealthScore {
   score: number
   grade: "A+" | "A" | "B" | "C" | "D" | "F"
@@ -125,6 +172,7 @@ export interface AnalysisReport {
   lint: LintResult
   types: TypeCheckResult
   security: SecurityResult
+  deps: DependencyResult
 }
 
 export interface TrendPoint {

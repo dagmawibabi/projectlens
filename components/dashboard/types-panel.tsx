@@ -1,9 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ChevronRight, FileCode2, CheckCircle2 } from "lucide-react"
+import { useMemo } from "react"
+import { ChevronRight, FileCode2, CheckCircle2, ListTree } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { InsightCard, CountList } from "./insights"
+import { FileLink, useInspector } from "./inspector"
+import { typeToIssue } from "@/lib/issues"
 import type { TypeCheckResult, TypeDiagnostic } from "@/lib/schema"
 import { cn } from "@/lib/utils"
 
