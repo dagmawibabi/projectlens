@@ -167,6 +167,10 @@ export function ModelPicker({
     })
   }, [models, query, filter])
 
+  // Separate free models from paid ones
+  const freeModels = useMemo(() => filtered.filter((m) => m.freeOpenRouter), [filtered])
+  const paidModels = useMemo(() => filtered.filter((m) => !m.freeOpenRouter), [filtered])
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? (
@@ -236,6 +240,75 @@ export function ModelPicker({
               <Loader2 className="size-4 animate-spin" />
               Loading catalog…
             </div>
+          ) : error || data?.error ? (
+            <div className="py-12 text-center font-mono text-sm text-muted-foreground">
+              Could not load the model catalog. Try again shortly.
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center font-mono text-sm text-muted-foreground">
+              No models match "{query}".
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {/* Free OpenRouter models section */}
+              {freeModels.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[color:var(--sev-ok)]">Free on OpenRouter</span>
+                    <span className="rounded-sm bg-[color:var(--sev-ok)]/12 px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--sev-ok)]">
+                      {freeModels.length}
+                    </span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {freeModels.map((m) => (
+                      <ModelRow
+                        key={m.id}
+                        model={m}
+                        selected={m.id === value}
+                        onSelect={() => {
+                          onChange(m.id)
+                          setOpen(false)
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Paid models section */}
+              {paidModels.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {freeModels.length > 0 && <div className="border-t border-border/50" />}
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">All models</span>
+                    <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {paidModels.length}
+                    </span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {paidModels.map((m) => (
+                      <ModelRow
+                        key={m.id}
+                        model={m}
+                        selected={m.id === value}
+                        onSelect={() => {
+                          onChange(m.id)
+                          setOpen(false)
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
+          <span>{filtered.length} models {freeModels.length > 0 && `(${freeModels.length} free)`}</span>
+          {selected && <span className="truncate text-foreground">{selected.name} selected</span>}
+        </div>
           ) : error || data?.error ? (
             <div className="py-12 text-center font-mono text-sm text-muted-foreground">
               Could not load the model catalog. Try again shortly.
