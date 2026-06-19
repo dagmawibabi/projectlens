@@ -17,6 +17,8 @@ import {
   Accessibility,
   Gauge,
   FlaskConical,
+  Terminal,
+  Sparkles,
 } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -164,167 +166,184 @@ export function Dashboard({
 
   return (
     <main className="min-h-svh bg-background">
-      <RunHeader
-        project={report.meta.project}
-        aiEnabled={report.meta.aiEnabled}
-        lastRunMs={report.meta.durationMs}
-        lastRunLabel="just now"
-        onOpenSearch={() => setPaletteOpen(true)}
-      />
-
       <InspectorProvider projectRoot={report.meta.project.root}>
-        <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
-          <Tabs
-            value={tab}
-            onValueChange={setTab}
-            className="flex flex-col gap-4 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-6"
-          >
-            {/* Mobile / tablet navigation */}
-            <div className="flex items-center gap-2 lg:hidden">
-              <Select value={tab} onValueChange={(v) => v && setTab(v)}>
-                <SelectTrigger className="flex-1">
-                  <span className="flex items-center gap-2">
-                    <activeTab.icon className="size-4 text-muted-foreground" />
-                    <SelectValue />
+        <div className="flex">
+          {/* Desktop sidebar — sticky, full viewport height */}
+          <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col border-r border-border bg-card lg:flex">
+            {/* Brand */}
+            <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-4">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-border text-foreground">
+                <Terminal className="size-5" />
+              </div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-mono text-base font-semibold text-foreground">CodeLens</h1>
+                {report.meta.aiEnabled && (
+                  <span className="inline-flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-foreground">
+                    <Sparkles className="size-2.5" />
+                    AI
                   </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {NAV_GROUPS.map((group, i) => (
-                    <SelectGroup key={group.label ?? `group-${i}`}>
-                      {group.label && <SelectLabel>{group.label}</SelectLabel>}
-                      {group.items.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          <span className="flex items-center gap-2">
-                            <item.icon className="size-4 text-muted-foreground" />
-                            {item.label}
-                            {counts[item.value] > 0 && (
-                              <span className="font-mono text-[10px] text-muted-foreground">{counts[item.value]}</span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+                )}
+              </div>
+            </div>
+
+            {/* Scrollable nav */}
+            <nav aria-label="Analysis sections" className="flex flex-1 flex-col gap-5 overflow-y-auto p-3">
+              {NAV_GROUPS.map((group, i) => (
+                <div key={group.label ?? `group-${i}`} className="flex flex-col gap-0.5">
+                  {group.label && (
+                    <p className="px-2 pb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                      {group.label}
+                    </p>
+                  )}
+                  {group.items.map((item) => {
+                    const active = tab === item.value
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => setTab(item.value)}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors",
+                          active
+                            ? "bg-secondary font-medium text-foreground"
+                            : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
+                        )}
+                      >
+                        <item.icon className="size-4 shrink-0" />
+                        <span className="flex-1 truncate text-left">{item.label}</span>
+                        {counts[item.value] > 0 && (
+                          <Badge variant="secondary" className="font-mono text-[10px] tabular-nums">
+                            {counts[item.value]}
+                          </Badge>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              ))}
+            </nav>
+
+            {/* Search pinned to the bottom of the rail */}
+            <div className="shrink-0 border-t border-border p-3">
               <button
                 type="button"
                 onClick={() => setPaletteOpen(true)}
-                aria-label="Search"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+                className="flex w-full items-center gap-2 rounded-sm border border-border bg-background px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Search className="size-4" />
+                <Search className="size-3.5" />
+                <span className="flex-1 text-left">Search</span>
+                <kbd className="rounded-[3px] border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
               </button>
             </div>
+          </aside>
 
-            {/* Desktop sidebar navigation */}
-            <aside className="hidden lg:sticky lg:top-4 lg:block lg:self-start">
-              <nav
-                aria-label="Analysis sections"
-                className="flex flex-col gap-5 rounded-sm border border-border bg-card p-3"
-              >
-                {NAV_GROUPS.map((group, i) => (
-                  <div key={group.label ?? `group-${i}`} className="flex flex-col gap-0.5">
-                    {group.label && (
-                      <p className="px-2 pb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                        {group.label}
-                      </p>
-                    )}
-                    {group.items.map((item) => {
-                      const active = tab === item.value
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          onClick={() => setTab(item.value)}
-                          className={cn(
-                            "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors",
-                            active
-                              ? "bg-secondary font-medium text-foreground"
-                              : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                          )}
-                        >
-                          <item.icon className="size-4 shrink-0" />
-                          <span className="flex-1 truncate text-left">{item.label}</span>
-                          {counts[item.value] > 0 && (
-                            <Badge variant="secondary" className="font-mono text-[10px] tabular-nums">
-                              {counts[item.value]}
-                            </Badge>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
+          {/* Right column: sticky top bar + scrollable content */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <RunHeader
+              project={report.meta.project}
+              aiEnabled={report.meta.aiEnabled}
+              lastRunMs={report.meta.durationMs}
+              lastRunLabel="just now"
+              onOpenSearch={() => setPaletteOpen(true)}
+            />
+
+            <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4 px-4 py-6 sm:px-6">
+              {/* Mobile / tablet navigation */}
+              <div className="flex items-center gap-2 lg:hidden">
+                <Select value={tab} onValueChange={(v) => v && setTab(v)}>
+                  <SelectTrigger className="flex-1">
+                    <span className="flex items-center gap-2">
+                      <activeTab.icon className="size-4 text-muted-foreground" />
+                      <SelectValue />
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NAV_GROUPS.map((group, i) => (
+                      <SelectGroup key={group.label ?? `group-${i}`}>
+                        {group.label && <SelectLabel>{group.label}</SelectLabel>}
+                        {group.items.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            <span className="flex items-center gap-2">
+                              <item.icon className="size-4 text-muted-foreground" />
+                              {item.label}
+                              {counts[item.value] > 0 && (
+                                <span className="font-mono text-[10px] text-muted-foreground">{counts[item.value]}</span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <button
                   type="button"
                   onClick={() => setPaletteOpen(true)}
-                  className="mt-1 flex items-center gap-2 rounded-sm border border-border bg-background px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Search"
+                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Search className="size-3.5" />
-                  <span className="flex-1 text-left">Search</span>
-                  <kbd className="rounded-[3px] border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+                  <Search className="size-4" />
                 </button>
-              </nav>
-            </aside>
+              </div>
 
-            {/* Content */}
-            <div className="min-w-0">
-              <TabsContent value="overview">
-                <OverviewPanel report={report} history={history} insights={insights} />
-              </TabsContent>
-              <TabsContent value="lint">
-                <LintPanel lint={lint} />
-              </TabsContent>
-              <TabsContent value="types">
-                <TypesPanel types={types} />
-              </TabsContent>
-              <TabsContent value="tests">
-                <TestsPanel tests={insights.tests} />
-              </TabsContent>
-              <TabsContent value="security">
-                <SecurityPanel security={security} />
-              </TabsContent>
-              <TabsContent value="deps">
-                <DependenciesPanel deps={deps} />
-              </TabsContent>
-              <TabsContent value="env">
-                <EnvPanel env={insights.env} />
-              </TabsContent>
-              <TabsContent value="network">
-                <NetworkPanel network={insights.network} />
-              </TabsContent>
-              <TabsContent value="performance">
-                <PerformancePanel performance={insights.performance} />
-              </TabsContent>
-              <TabsContent value="accessibility">
-                <AccessibilityPanel accessibility={insights.accessibility} />
-              </TabsContent>
-              <TabsContent value="database">
-                <DatabasePanel database={insights.database} />
-              </TabsContent>
-              <TabsContent value="git">
-                <GitPanel git={insights.git} />
-              </TabsContent>
-              <TabsContent value="setup">
-                <SetupPanel setup={insights.setup} />
-              </TabsContent>
-              <TabsContent value="docs">
-                <DocsPanel docs={insights.docs} />
-              </TabsContent>
-            </div>
-          </Tabs>
-
-          <CommandPalette
-            open={paletteOpen}
-            onOpenChange={setPaletteOpen}
-            tabs={TABS}
-            onSelectTab={selectTab}
-            report={report}
-            insights={insights}
-          />
+              {/* Content */}
+              <div className="min-w-0">
+                <TabsContent value="overview">
+                  <OverviewPanel report={report} history={history} insights={insights} />
+                </TabsContent>
+                <TabsContent value="lint">
+                  <LintPanel lint={lint} />
+                </TabsContent>
+                <TabsContent value="types">
+                  <TypesPanel types={types} />
+                </TabsContent>
+                <TabsContent value="tests">
+                  <TestsPanel tests={insights.tests} />
+                </TabsContent>
+                <TabsContent value="security">
+                  <SecurityPanel security={security} />
+                </TabsContent>
+                <TabsContent value="deps">
+                  <DependenciesPanel deps={deps} />
+                </TabsContent>
+                <TabsContent value="env">
+                  <EnvPanel env={insights.env} />
+                </TabsContent>
+                <TabsContent value="network">
+                  <NetworkPanel network={insights.network} />
+                </TabsContent>
+                <TabsContent value="performance">
+                  <PerformancePanel performance={insights.performance} />
+                </TabsContent>
+                <TabsContent value="accessibility">
+                  <AccessibilityPanel accessibility={insights.accessibility} />
+                </TabsContent>
+                <TabsContent value="database">
+                  <DatabasePanel database={insights.database} />
+                </TabsContent>
+                <TabsContent value="git">
+                  <GitPanel git={insights.git} />
+                </TabsContent>
+                <TabsContent value="setup">
+                  <SetupPanel setup={insights.setup} />
+                </TabsContent>
+                <TabsContent value="docs">
+                  <DocsPanel docs={insights.docs} />
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
         </div>
+
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          tabs={TABS}
+          onSelectTab={selectTab}
+          report={report}
+          insights={insights}
+        />
       </InspectorProvider>
     </main>
   )
