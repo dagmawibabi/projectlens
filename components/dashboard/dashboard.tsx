@@ -22,6 +22,7 @@ import {
   Sparkles,
   Settings,
   MessageSquare,
+  Webhook,
 } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -55,6 +56,7 @@ import { CommandPalette, type TabDef } from "./command-palette"
 import { EmptyState } from "./empty-state"
 import { SettingsView } from "@/components/settings/settings-view"
 import { ChatView } from "@/components/chat/chat-view"
+import { ApiReference } from "./api-reference"
 import { RunDialog } from "@/components/run/run-dialog"
 import type { AnalysisReport, TrendPoint } from "@/lib/schema"
 import type { ProjectInsights } from "@/lib/project-insights"
@@ -105,6 +107,7 @@ function buildNavGroups(authPresent: boolean): NavGroup[] {
         { value: "database", label: "Database", icon: Database },
         { value: "git", label: "Git & CI/CD", icon: GitBranch },
         { value: "docs", label: "Docs", icon: BookOpen },
+        { value: "api", label: "API Reference", icon: Webhook },
       ],
     },
   ]
@@ -422,6 +425,9 @@ export function Dashboard({
                 </TabsContent>
                 <TabsContent value="docs">
                   <DocsPanel docs={insights.docs} />
+                </TabsContent>
+                <TabsContent value="api">
+                  <ApiReference />
                 </TabsContent>
                 <TabsContent value="chat">
                   <ChatView pendingSeed={chatSeed} seedNonce={chatSeedNonce} />
