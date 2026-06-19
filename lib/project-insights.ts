@@ -553,6 +553,83 @@ export interface TestsResult {
 }
 
 /* ------------------------------------------------------------------ */
+/* Auth (Better Auth)                                                  */
+/* ------------------------------------------------------------------ */
+
+export type AuthStatus = "ok" | "warn" | "fail" | "info"
+
+export type AuthPluginCategory =
+  | "two-factor"
+  | "passwordless"
+  | "social"
+  | "authorization"
+  | "session"
+  | "api"
+  | "enterprise"
+  | "integration"
+  | "utility"
+  | "other"
+
+export interface AuthMethod {
+  id: string
+  label: string
+  kind: "credential" | "social" | "passwordless"
+  enabled: boolean
+  detail: string
+  providers?: string[]
+}
+
+export interface AuthPlugin {
+  id: string
+  name: string
+  category: AuthPluginCategory
+  side: "server" | "client" | "both"
+  detectedServer: boolean
+  detectedClient: boolean
+  needsClient: boolean
+  clientMissing: boolean
+  description: string
+  docsUrl: string
+  addsTables?: string[]
+}
+
+export interface AuthConfigItem {
+  key: string
+  label: string
+  value: string
+  status: AuthStatus
+  detail?: string
+  recommendation?: string
+}
+
+export interface AuthFinding {
+  id: string
+  severity: Severity
+  title: string
+  detail: string
+  recommendation: string
+  filePath?: string
+  line?: number
+  docsUrl?: string
+}
+
+export interface AuthResult {
+  present: boolean
+  version?: string
+  integration?: string
+  configPath?: string
+  clientPath?: string
+  databaseAdapter?: { name: string; detail: string }
+  methods: AuthMethod[]
+  socialProviders: string[]
+  plugins: AuthPlugin[]
+  config: AuthConfigItem[]
+  session: { expiresIn?: number; updateAge?: number; cookieCache?: boolean }
+  findings: AuthFinding[]
+  counts: { plugins: number; methods: number; providers: number; findings: number }
+}
+
+/* ------------------------------------------------------------------ */
 /* Aggregate                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -563,6 +640,7 @@ export interface ProjectInsights {
   setup: SetupResult
   docs: DocsResult
   database: DbResult
+  auth: AuthResult
   accessibility: A11yResult
   performance: PerfResult
   tests: TestsResult
@@ -1423,6 +1501,145 @@ export const projectInsights: ProjectInsights = {
         note: "Healthy — sub-millisecond cache reads.",
       },
     ],
+  },
+
+  auth: {
+    present: true,
+    version: "1.2.8",
+    integration: "Next.js",
+    configPath: "lib/auth.ts",
+    clientPath: "lib/auth-client.ts",
+    databaseAdapter: { name: "Drizzle", detail: "drizzleAdapter()" },
+    methods: [
+      { id: "email-password", label: "Email & Password", kind: "credential", enabled: true, detail: "Enabled · no email verification" },
+      {
+        id: "social",
+        label: "Social Login",
+        kind: "social",
+        enabled: true,
+        detail: "2 providers",
+        providers: ["github", "google"],
+      },
+    ],
+    socialProviders: ["github", "google"],
+    plugins: [
+      {
+        id: "twoFactor",
+        name: "Two-Factor (2FA)",
+        category: "two-factor",
+        side: "both",
+        detectedServer: true,
+        detectedClient: false,
+        needsClient: true,
+        clientMissing: true,
+        description: "TOTP and OTP-based two-factor authentication.",
+        docsUrl: "https://www.better-auth.com/docs/plugins/2fa",
+        addsTables: ["twoFactor"],
+      },
+      {
+        id: "organization",
+        name: "Organization",
+        category: "authorization",
+        side: "both",
+        detectedServer: true,
+        detectedClient: true,
+        needsClient: true,
+        clientMissing: false,
+        description: "Multi-tenant organizations, members, invitations and roles.",
+        docsUrl: "https://www.better-auth.com/docs/plugins/organization",
+        addsTables: ["organization", "member", "invitation"],
+      },
+      {
+        id: "admin",
+        name: "Admin",
+        category: "authorization",
+        side: "both",
+        detectedServer: true,
+        detectedClient: true,
+        needsClient: true,
+        clientMissing: false,
+        description: "Admin APIs: user management, banning, impersonation, role checks.",
+        docsUrl: "https://www.better-auth.com/docs/plugins/admin",
+      },
+      {
+        id: "magicLink",
+        name: "Magic Link",
+        category: "passwordless",
+        side: "both",
+        detectedServer: true,
+        detectedClient: true,
+        needsClient: true,
+        clientMissing: false,
+        description: "Passwordless email magic-link sign-in.",
+        docsUrl: "https://www.better-auth.com/docs/plugins/magic-link",
+      },
+      {
+        id: "nextCookies",
+        name: "Next.js Cookies",
+        category: "integration",
+        side: "server",
+        detectedServer: true,
+        detectedClient: false,
+        needsClient: false,
+        clientMissing: false,
+        description: "Handles cookie setting inside Next.js server actions.",
+        docsUrl: "https://www.better-auth.com/docs/integrations/next",
+      },
+    ],
+    config: [
+      { key: "secret", label: "Secret", value: "From environment", status: "ok" },
+      {
+        key: "baseURL",
+        label: "Base URL",
+        value: "Set",
+        status: "ok",
+      },
+      { key: "trustedOrigins", label: "Trusted Origins", value: "Configured", status: "ok" },
+      {
+        key: "session",
+        label: "Session lifetime",
+        value: "7d",
+        status: "ok",
+        detail: "Cookie cache enabled",
+      },
+      { key: "rateLimit", label: "Rate limiting", value: "Default (prod only)", status: "info" },
+      { key: "cookies", label: "Secure cookies", value: "Auto (prod)", status: "ok" },
+    ],
+    session: { expiresIn: 604800, updateAge: 86400, cookieCache: true },
+    findings: [
+      {
+        id: "auth-client-twoFactor",
+        severity: "medium",
+        title: "Two-Factor (2FA) is missing its client plugin",
+        detail:
+          "The Two-Factor server plugin is registered but no matching client plugin was found in lib/auth-client.ts. Its client actions won't be available.",
+        recommendation: "Add twoFactorClient() to createAuthClient({ plugins: [...] }).",
+        filePath: "lib/auth.ts",
+        docsUrl: "https://www.better-auth.com/docs/plugins/2fa",
+      },
+      {
+        id: "auth-email-verif",
+        severity: "medium",
+        title: "Email verification not required",
+        detail:
+          "Email & password sign-in is enabled but accounts can be created without verifying ownership of the email address.",
+        recommendation:
+          "Set emailAndPassword.requireEmailVerification = true and wire up emailVerification.sendVerificationEmail.",
+        filePath: "lib/auth.ts",
+        docsUrl: "https://www.better-auth.com/docs/authentication/email-password",
+      },
+      {
+        id: "auth-migrations",
+        severity: "info",
+        title: "Plugins add database tables",
+        detail:
+          "Two-Factor (2FA), Organization extend the schema with new tables. Make sure migrations were generated and applied.",
+        recommendation: "Run `npx @better-auth/cli generate` then your migration tool to sync the schema.",
+        filePath: "lib/auth.ts",
+        docsUrl: "https://www.better-auth.com/docs/concepts/database",
+      },
+    ],
+    counts: { plugins: 5, methods: 2, providers: 2, findings: 3 },
   },
 
   accessibility: {

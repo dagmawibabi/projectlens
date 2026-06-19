@@ -482,6 +482,96 @@ export interface TestsResult {
 }
 
 /* ------------------------------------------------------------------ */
+/* Auth (Better Auth)                                                  */
+/* ------------------------------------------------------------------ */
+
+export type AuthStatus = "ok" | "warn" | "fail" | "info"
+
+export type AuthPluginCategory =
+  | "two-factor"
+  | "passwordless"
+  | "social"
+  | "authorization"
+  | "session"
+  | "api"
+  | "enterprise"
+  | "integration"
+  | "utility"
+  | "other"
+
+/** A configured sign-in method (credentials, social, passwordless). */
+export interface AuthMethod {
+  id: string
+  label: string
+  kind: "credential" | "social" | "passwordless"
+  enabled: boolean
+  detail: string
+  /** For social: the configured provider ids. */
+  providers?: string[]
+}
+
+/** A detected Better Auth plugin, server and/or client side. */
+export interface AuthPlugin {
+  id: string
+  name: string
+  category: AuthPluginCategory
+  /** Where this plugin is expected to live. */
+  side: "server" | "client" | "both"
+  detectedServer: boolean
+  detectedClient: boolean
+  /** Whether a matching client plugin is required for it to work. */
+  needsClient: boolean
+  /** True when the server plugin is present but its required client half isn't. */
+  clientMissing: boolean
+  description: string
+  docsUrl: string
+  /** Database tables/models this plugin adds (migration reminder). */
+  addsTables?: string[]
+}
+
+/** A single resolved configuration value with an assessment. */
+export interface AuthConfigItem {
+  key: string
+  label: string
+  value: string
+  status: AuthStatus
+  detail?: string
+  recommendation?: string
+}
+
+export interface AuthFinding {
+  id: string
+  severity: Severity
+  title: string
+  detail: string
+  recommendation: string
+  filePath?: string
+  line?: number
+  docsUrl?: string
+}
+
+export interface AuthResult {
+  /** True when `better-auth` is a dependency. Gates the whole tab. */
+  present: boolean
+  version?: string
+  /** Framework integration in use (e.g. "Next.js"). */
+  integration?: string
+  /** Path to the server `betterAuth()` config, if found. */
+  configPath?: string
+  /** Path to the `createAuthClient()` setup, if found. */
+  clientPath?: string
+  /** Database adapter powering Better Auth. */
+  databaseAdapter?: { name: string; detail: string }
+  methods: AuthMethod[]
+  socialProviders: string[]
+  plugins: AuthPlugin[]
+  config: AuthConfigItem[]
+  session: { expiresIn?: number; updateAge?: number; cookieCache?: boolean }
+  findings: AuthFinding[]
+  counts: { plugins: number; methods: number; providers: number; findings: number }
+}
+
+/* ------------------------------------------------------------------ */
 /* Aggregate                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -492,6 +582,7 @@ export interface ProjectInsights {
   setup: SetupResult
   docs: DocsResult
   database: DbResult
+  auth: AuthResult
   accessibility: A11yResult
   performance: PerfResult
   tests: TestsResult
