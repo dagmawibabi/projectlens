@@ -146,9 +146,9 @@ function SuiteRow({ suite, expanded, onToggle }: { suite: TestSuite; expanded: b
                       {test.name}
                     </span>
                   </div>
-                  {test.duration && (
+                  {test.durationMs != null && (
                     <span className="shrink-0 text-muted-foreground/70">
-                      {(test.duration / 1000).toFixed(2)}s
+                      {(test.durationMs / 1000).toFixed(2)}s
                     </span>
                   )}
                 </div>

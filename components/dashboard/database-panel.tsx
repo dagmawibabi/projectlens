@@ -346,65 +346,50 @@ export function DatabasePanel({ database }: { database: DbResult }) {
               <span className="font-mono text-xs tabular-nums text-muted-foreground">{tables.length}</span>
             </button>
           )}
-          </div>
-        )}
+        </div>
 
-        {/* Schema / Tables view */}
-        {viewTab === "schema" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <Layers className="size-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Database schema</h3>
-              <Badge variant="secondary" className="font-mono text-xs">
-                {tables.length} tables
-              </Badge>
-            </div>
-            {tables.length === 0 ? (
-              <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-                <Activity className="size-5" />
-                Schema not yet discovered. Run a database introspection scan.
-              </Card>
-            ) : (
-              <Card className="gap-0 overflow-hidden py-0">
-                {tables.map((t) => (
-                  <TableRow
-                    key={t.name}
-                    table={t}
-                    expanded={expandedTables.has(t.name)}
-                    onToggle={() => toggleTableExpand(t.name)}
-                  />
+        {/* Findings view */}
+        {viewTab === "findings" && (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-1 rounded-sm border border-border bg-card p-1">
+                {filterTabs.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setFilter(t.key)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm transition-colors",
+                      filter === t.key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t.label}
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">{t.count}</span>
+                  </button>
                 ))}
-              </Card>
-            )}
-          </div>
-        )}
-              >
-                {t.label}
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">{t.count}</span>
-              </button>
-            ))}
-          </div>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <Database className="size-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Database findings</h3>
-            <Badge variant="secondary" className="font-mono text-xs">
-              {filtered.length}
-            </Badge>
-          </div>
+              <div className="flex items-center gap-2">
+                <Database className="size-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">Database findings</h3>
+                <Badge variant="secondary" className="font-mono text-xs">
+                  {filtered.length}
+                </Badge>
+              </div>
 
-          {filtered.length === 0 ? (
-            <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-              <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
-              No database issues in this category.
-            </Card>
-          ) : (
-            <Card className="gap-0 overflow-hidden py-0">
-              {filtered.map((f) => (
-                <FindingRow key={f.id} f={f} />
-              ))}
-            </Card>
-          )}
+              {filtered.length === 0 ? (
+                <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+                  <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
+                  No database issues in this category.
+                </Card>
+              ) : (
+                <Card className="gap-0 overflow-hidden py-0">
+                  {filtered.map((f) => (
+                    <FindingRow key={f.id} f={f} />
+                  ))}
+                </Card>
+              )}
+            </div>
 
             <section className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
@@ -420,7 +405,7 @@ export function DatabasePanel({ database }: { database: DbResult }) {
                 ))}
               </Card>
             </section>
-        </div>
+          </div>
         )}
 
         {/* Schema / Tables view */}

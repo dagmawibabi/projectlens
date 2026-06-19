@@ -309,36 +309,6 @@ export function ModelPicker({
           <span>{filtered.length} models {freeModels.length > 0 && `(${freeModels.length} free)`}</span>
           {selected && <span className="truncate text-foreground">{selected.name} selected</span>}
         </div>
-          ) : error || data?.error ? (
-            <div className="py-12 text-center font-mono text-sm text-muted-foreground">
-              Could not load the model catalog. Try again shortly.
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center font-mono text-sm text-muted-foreground">
-              No models match “{query}”.
-            </div>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {filtered.map((m) => (
-                <ModelRow
-                  key={m.id}
-                  model={m}
-                  selected={m.id === value}
-                  onSelect={() => {
-                    onChange(m.id)
-                    setOpen(false)
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
-          <span>{filtered.length} models</span>
-          {selected && <span className="truncate text-foreground">{selected.name} selected</span>}
-        </div>
       </DialogContent>
     </Dialog>
   )

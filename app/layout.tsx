@@ -37,7 +37,7 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+          <TooltipProvider delay={200}>{children}</TooltipProvider>
         </ThemeProvider>
       </body>
     </html>
