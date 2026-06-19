@@ -9,6 +9,13 @@ __v0_jsx-dev-runtime.ts
 # Environment variables
 .env*.local
 
+# Build artifacts
+out/
+.next-export/
+next-env.d.ts
+cli/public/
+cli/dist/
+
 # Common ignores
 node_modules
 .next/

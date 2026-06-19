@@ -10,7 +10,7 @@ const nextConfig = {
   // export a fully static bundle. Guarded by an env flag so the normal
   // dev/preview build is unaffected.
   ...(process.env.CODELENS_EXPORT === "1"
-    ? { output: "export", distDir: ".next-export" }
+    ? { output: "export" }
     : {}),
 }
 
