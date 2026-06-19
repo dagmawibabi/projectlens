@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import {
   Play,
@@ -81,7 +80,6 @@ export function CommandPalette({
   report: AnalysisReport
   insights: ProjectInsights
 }) {
-  const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
   const { viewIssue } = useInspector()
 
@@ -136,7 +134,7 @@ export function CommandPalette({
             <span>Run checks</span>
             <CommandShortcut>R</CommandShortcut>
           </CommandItem>
-          <CommandItem value="open settings" onSelect={() => run(() => router.push("/settings"))}>
+          <CommandItem value="open settings" onSelect={() => run(() => onSelectTab("settings"))}>
             <Settings />
             <span>Open settings</span>
             <CommandShortcut>,</CommandShortcut>
