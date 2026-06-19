@@ -73,6 +73,8 @@ export async function auditCode(
 ): Promise<SecurityFinding[]> {
   if (!aiEnabled() || files.length === 0) return []
 
+  const redact = loadConfig().redactSecrets
+
   // Build a compact, line-numbered bundle the model can cite precisely.
   const bundle = files
     .map((rel) => {
@@ -82,6 +84,7 @@ export async function auditCode(
       } catch {
         return ''
       }
+      if (redact) content = redactSecrets(content)
       const numbered = content
         .split('\n')
         .map((l, i) => `${i + 1}: ${l}`)
@@ -135,7 +138,7 @@ export async function prioritizeDependencies(
     .join('\n')
 
   const { experimental_output } = await generateText({
-    model: MODEL,
+    model: model(),
     system: `You are a security engineer triaging dependency advisories for a ${project.framework} app.
 For each advisory, explain in one or two sentences the realistic real-world impact for
 THIS kind of project, and whether the vulnerable code path is likely reachable. Be honest
@@ -149,6 +152,30 @@ about low real-world risk for transitive/build-only packages.`,
     const ai = byName.get(v.name)
     return ai ? { ...v, impact: ai.impact, severity: ai.severity } : v
   })
+}
+
+/* ------------------------------- Redaction -------------------------------- */
+
+/**
+ * Mask obvious secret-looking values before sending code to the model. This is
+ * best-effort — it preserves structure (so findings still make sense) while
+ * blanking long tokens, assigned secrets, and common provider key formats.
+ */
+function redactSecrets(content: string): string {
+  return (
+    content
+      // key = "value" / KEY: 'value' where the name hints at a secret
+      .replace(
+        /\b([A-Za-z0-9_]*(?:secret|token|key|password|passwd|api[_-]?key|auth|credential)[A-Za-z0-9_]*)\b(\s*[:=]\s*)(['"`])[^'"`]+\3/gi,
+        (_m, name, sep, q) => `${name}${sep}${q}[REDACTED]${q}`,
+      )
+      // Common provider key prefixes (sk-, ghp_, AKIA…, AIza…)
+      .replace(/\b(sk|pk|ghp|gho|ghs|rk)_[A-Za-z0-9]{16,}\b/g, '$1_[REDACTED]')
+      .replace(/\bAKIA[0-9A-Z]{16}\b/g, 'AKIA[REDACTED]')
+      .replace(/\bAIza[0-9A-Za-z\-_]{20,}\b/g, 'AIza[REDACTED]')
+      // Long bearer-ish tokens in headers
+      .replace(/\b(Bearer\s+)[A-Za-z0-9\-._~+/]{20,}=*/g, '$1[REDACTED]')
+  )
 }
 
 /* ----------------------------- File selection ----------------------------- */
@@ -175,15 +202,15 @@ const IGNORE_DIRS = new Set([
   '.codelens',
 ])
 
-const MAX_FILES = 25
 const MAX_FILE_BYTES = 24_000
 
 /** Walk the project and pick the most security-relevant source files. */
 async function selectFiles(root: string): Promise<string[]> {
+  const maxFiles = loadConfig().maxFiles
   const picked: string[] = []
 
   async function walk(dir: string) {
-    if (picked.length >= MAX_FILES) return
+    if (picked.length >= maxFiles) return
     let entries: import('node:fs').Dirent[]
     try {
       entries = await fsp.readdir(dir, { withFileTypes: true })
@@ -191,7 +218,7 @@ async function selectFiles(root: string): Promise<string[]> {
       return
     }
     for (const entry of entries) {
-      if (picked.length >= MAX_FILES) return
+      if (picked.length >= maxFiles) return
       if (entry.isDirectory()) {
         if (IGNORE_DIRS.has(entry.name) || entry.name.startsWith('.')) continue
         await walk(join(dir, entry.name))

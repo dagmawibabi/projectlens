@@ -1,5 +1,5 @@
 import { convertToModelMessages, streamText, type UIMessage } from "ai"
-import { getChat, saveChatMessages, upsertChat } from "@/lib/chat-store.server"
+import { getChat, saveChatMessages, upsertChat, getChatConfig } from "@/lib/chat-store.server"
 import { deriveTitle, type ChatSeed, type StoredChat } from "@/lib/chat-types"
 
 // AI SDK must not run on the edge runtime.
@@ -43,7 +43,15 @@ export async function POST(req: Request) {
   }
 
   const { id, messages } = body
-  const model = body.model?.trim() || DEFAULT_MODEL
+
+  // Honor the dashboard Settings: disabling the assistant blocks the API too.
+  const chatConfig = await getChatConfig()
+  if (!chatConfig.enabled) {
+    return new Response("The AI chat assistant is disabled in settings.", { status: 403 })
+  }
+
+  // Model precedence: explicit request → configured default → built-in default.
+  const model = body.model?.trim() || chatConfig.model?.trim() || DEFAULT_MODEL
 
   // Ensure a chat record exists so persistence on finish has something to update.
   let chat = id ? await getChat(id) : null
