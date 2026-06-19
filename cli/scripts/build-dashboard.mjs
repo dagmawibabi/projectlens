@@ -14,7 +14,8 @@ const exportDir = join(dashboardRoot, "out")
 const publicDir = join(cliRoot, "public")
 
 console.log("[codelens] Building dashboard (static export)...")
-execSync("next build", {
+const nextBin = join(dashboardRoot, "node_modules", ".bin", "next")
+execSync(`"${nextBin}" build`, {
   cwd: dashboardRoot,
   stdio: "inherit",
   env: { ...process.env, CODELENS_EXPORT: "1" },
