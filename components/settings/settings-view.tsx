@@ -222,7 +222,7 @@ export function SettingsView() {
                 {/* Searchable, detailed catalog (models.dev) for any provider. */}
                 <ModelPicker value={settings.model} onChange={(v) => patch({ model: v })} />
                 {/* Quick-pick from the active provider's curated list. */}
-                <Select value={settings.model} onValueChange={(v) => patch({ model: v })}>
+                <Select value={settings.model ?? undefined} onValueChange={(v) => patch({ model: v ?? "" })}>
                   <SelectTrigger className="w-full rounded-sm font-mono text-xs">
                     <SelectValue placeholder="Quick pick…" />
                   </SelectTrigger>
