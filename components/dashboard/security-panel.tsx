@@ -53,7 +53,18 @@ function FindingRow({ finding }: { finding: SecurityFinding }) {
 }
 
 export function SecurityPanel({ security }: { security: SecurityResult }) {
-  const findings = useMemo(() => [...security.findings].sort(bySeverityDesc), [security.findings])
+  const findingsByGroup = useMemo(() => {
+    const groups = new Map<string, SecurityFinding[]>()
+    for (const f of security.findings) {
+      const key = f.severity
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(f)
+    }
+    const order = { critical: 0, high: 1, medium: 2, low: 3, info: 4 }
+    return [...groups.entries()]
+      .sort((a, b) => (order[a[0] as keyof typeof order] ?? 5) - (order[b[0] as keyof typeof order] ?? 5))
+      .map(([sev, items]) => ({ severity: sev as SecurityFinding["severity"], items: items.sort(bySeverityDesc) }))
+  }, [security.findings])
 
   const sevSegments = (["critical", "high", "medium", "low", "info"] as const).map((s, i) => ({
     label: severityStyle(s).label,
@@ -139,23 +150,38 @@ export function SecurityPanel({ security }: { security: SecurityResult }) {
         </InsightCard>
       </aside>
 
-      {/* Main findings */}
+      {/* Main findings grouped by severity */}
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex items-center gap-2">
           <ShieldAlert className="size-4 text-[color:var(--sev-high)]" />
           <h3 className="text-sm font-semibold text-foreground">Code findings</h3>
           <Badge variant="secondary" className="font-mono text-xs">
-            {findings.length}
+            {security.findings.length}
           </Badge>
           <span className="ml-auto font-mono text-xs text-muted-foreground">click a finding for full detail</span>
         </div>
-        {findings.length === 0 ? (
+        {security.findings.length === 0 ? (
           <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
             <ShieldCheck className="size-5 text-[color:var(--sev-ok)]" />
             No code-level security issues found by the AI review.
           </Card>
         ) : (
-          findings.map((f) => <FindingRow key={f.id} finding={f} />)
+          findingsByGroup.map((group) => (
+            <div key={group.severity} className="flex flex-col gap-2">
+              {/* Severity group header */}
+              <div className="flex items-center gap-2 px-1 py-2">
+                <span className={cn("font-mono text-xs font-semibold uppercase", severityStyle(group.severity).text)}>
+                  {severityStyle(group.severity).label} ({group.items.length})
+                </span>
+              </div>
+              {/* Findings in this group */}
+              <div className="flex flex-col gap-2">
+                {group.items.map((f) => (
+                  <FindingRow key={f.id} finding={f} />
+                ))}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>

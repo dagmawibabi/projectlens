@@ -96,51 +96,75 @@ function ValueRow({ v, shown, onToggle }: { v: EnvVariable; shown: boolean; onTo
     })
   }
 
+  // Per-file values for comparing across .env.local, .env.example, etc.
+  const perFileValues = v.values ? [...v.values].sort((a, b) => {
+    // .env.local first, then .env.example, then others
+    const order = { ".env.local": 0, ".env.example": 1 }
+    return (order[a.file as keyof typeof order] ?? 2) - (order[b.file as keyof typeof order] ?? 2)
+  }) : []
+
   return (
-    <div className="flex items-start gap-3 border-t border-border p-3 first:border-t-0">
-      {v.scope === "client" ? (
-        <Monitor className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      ) : (
-        <Server className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm text-foreground">{v.key}</span>
-          <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
-            {v.scope}
-          </span>
+    <div className="flex flex-col gap-3 border-t border-border p-3 first:border-t-0">
+      {/* Primary value row */}
+      <div className="flex items-start gap-3">
+        {v.scope === "client" ? (
+          <Monitor className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <Server className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm text-foreground">{v.key}</span>
+            <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+              {v.scope}
+            </span>
+          </div>
+          <p
+            className={cn(
+              "mt-1.5 break-all font-mono text-xs",
+              notSet ? "text-muted-foreground/60 italic" : shown ? "text-foreground" : "tracking-widest text-muted-foreground",
+            )}
+          >
+            {notSet ? display : shown ? display : "•".repeat(Math.min(28, Math.max(8, (v.value || "").length || 12)))}
+          </p>
         </div>
-        <p
-          className={cn(
-            "mt-1.5 break-all font-mono text-xs",
-            notSet ? "text-muted-foreground/60 italic" : shown ? "text-foreground" : "tracking-widest text-muted-foreground",
+        <div className="flex shrink-0 items-center gap-1">
+          {!notSet && (
+            <button
+              type="button"
+              onClick={copy}
+              aria-label="Copy value"
+              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {copied ? <Check className="size-3.5 text-[color:var(--sev-ok)]" /> : <Copy className="size-3.5" />}
+            </button>
           )}
-        >
-          {notSet ? display : shown ? display : "•".repeat(Math.min(28, Math.max(8, (v.value || "").length || 12)))}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {!notSet && (
           <button
             type="button"
-            onClick={copy}
-            aria-label="Copy value"
-            className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            onClick={onToggle}
+            disabled={notSet}
+            aria-label={shown ? "Hide value" : "Reveal value"}
+            aria-pressed={shown}
+            className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-30"
           >
-            {copied ? <Check className="size-3.5 text-[color:var(--sev-ok)]" /> : <Copy className="size-3.5" />}
+            {shown ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={notSet}
-          aria-label={shown ? "Hide value" : "Reveal value"}
-          aria-pressed={shown}
-          className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-30"
-        >
-          {shown ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-        </button>
+        </div>
       </div>
+
+      {/* Per-file comparison when available */}
+      {perFileValues.length > 1 && (
+        <div className="ml-7 flex flex-col gap-1 border-l border-border/50 pl-3 text-xs">
+          {perFileValues.map((fv) => (
+            <div key={fv.file} className="flex items-center gap-2">
+              <span className="text-muted-foreground">{fv.file}</span>
+              <span className={cn("font-mono truncate", fv.value === null ? "text-muted-foreground/60 italic" : "text-foreground")}>
+                {fv.value === null ? "(not set)" : fv.value === "" ? "(empty)" : shown ? fv.value : "•".repeat(Math.min(12, Math.max(4, (fv.value || "").length || 8)))}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
