@@ -12,6 +12,13 @@ import {
   CircleSlash,
   Users,
   ShieldCheck,
+  GitGraph,
+  GitFork,
+  Tag,
+  EyeOff,
+  Archive,
+  ExternalLink,
+  Check,
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +26,7 @@ import { InsightCard } from "./insights"
 import { FileLink, useInspector } from "./inspector"
 import { severityStyle, bySeverityDesc } from "@/lib/severity"
 import { gitToIssue } from "@/lib/issues"
-import type { GitResult, GitIssue, CiWorkflow, CiStatus } from "@/lib/project-insights"
+import type { GitResult, GitIssue, CiWorkflow, CiStatus, GitBranch as GitBranchType } from "@/lib/project-insights"
 import { cn } from "@/lib/utils"
 
 const CHANGE_LABEL: Record<string, string> = {
@@ -135,13 +142,71 @@ function WorkflowCard({ wf }: { wf: CiWorkflow }) {
   )
 }
 
+function BranchRow({ branch }: { branch: GitBranchType }) {
+  return (
+    <div className="flex items-center gap-2.5 border-t border-border px-4 py-2.5 first:border-t-0">
+      {branch.current ? (
+        <Check className="size-3.5 shrink-0 text-[color:var(--sev-ok)]" />
+      ) : branch.remote ? (
+        <GitFork className="size-3.5 shrink-0 text-muted-foreground" />
+      ) : (
+        <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
+      )}
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate font-mono text-xs",
+          branch.current ? "font-semibold text-foreground" : "text-foreground",
+        )}
+      >
+        {branch.name}
+      </span>
+      {branch.current && (
+        <Badge className="border-0 bg-[color:var(--sev-ok)]/15 font-mono text-[10px] text-[color:var(--sev-ok)]">
+          current
+        </Badge>
+      )}
+      {branch.remote && !branch.current && (
+        <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">remote</span>
+      )}
+      {branch.lastCommitRelative && (
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{branch.lastCommitRelative}</span>
+      )}
+    </div>
+  )
+}
+
 export function GitPanel({ git }: { git: GitResult }) {
   const { state } = git
   const issues = [...git.issues].sort(bySeverityDesc)
+  const localBranches = state.branches.filter((b) => !b.remote)
+  const remoteBranches = state.branches.filter((b) => b.remote)
+  const orderedBranches = [...localBranches, ...remoteBranches]
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
       <aside className="flex flex-col gap-4 lg:order-last lg:sticky lg:top-20 lg:self-start">
+        {state.remoteInfo && (
+          <InsightCard title="Repository">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <GitGraph className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate font-mono text-sm text-foreground">
+                  {state.remoteInfo.owner}/{state.remoteInfo.name}
+                </span>
+              </div>
+              <a
+                href={state.remoteInfo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 self-start rounded-sm bg-secondary px-2 py-1 font-mono text-[11px] text-foreground transition-colors hover:bg-secondary/70"
+              >
+                <ExternalLink className="size-3" />
+                View on {state.remoteInfo.provider}
+              </a>
+            </div>
+          </InsightCard>
+        )}
+
         <InsightCard title="Working tree">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -174,6 +239,16 @@ export function GitPanel({ git }: { git: GitResult }) {
               </span>
               <span>{state.totalCommits.toLocaleString()} commits</span>
             </div>
+            {(state.stashes > 0 || state.tags.length > 0) && (
+              <div className="flex items-center justify-between border-t border-border pt-3 font-mono text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Archive className="size-3.5" /> {state.stashes} {state.stashes === 1 ? "stash" : "stashes"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Tag className="size-3.5" /> {state.tags.length} tags
+                </span>
+              </div>
+            )}
           </div>
         </InsightCard>
 
@@ -199,12 +274,97 @@ export function GitPanel({ git }: { git: GitResult }) {
           )}
         </InsightCard>
 
+        {state.ignored.count > 0 && (
+          <InsightCard title={`Ignored files (${state.ignored.count})`}>
+            <ul className="flex flex-col gap-1.5">
+              {state.ignored.samples.map((p) => (
+                <li key={p} className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+                  <EyeOff className="size-3.5 shrink-0" />
+                  <span className="truncate">{p}</span>
+                </li>
+              ))}
+              {state.ignored.count > state.ignored.samples.length && (
+                <li className="font-mono text-[10px] text-muted-foreground">
+                  +{state.ignored.count - state.ignored.samples.length} more
+                </li>
+              )}
+            </ul>
+          </InsightCard>
+        )}
+
         <InsightCard title="Remote">
-          <p className="break-all font-mono text-xs text-muted-foreground">{state.remote}</p>
+          <p className="break-all font-mono text-xs text-muted-foreground">{state.remote || "No remote configured"}</p>
         </InsightCard>
       </aside>
 
       <div className="flex min-w-0 flex-col gap-6">
+        {orderedBranches.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <GitBranch className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Branches</h3>
+              <Badge variant="secondary" className="font-mono text-xs">
+                {localBranches.length} local · {remoteBranches.length} remote
+              </Badge>
+            </div>
+            <Card className="gap-0 overflow-hidden py-0">
+              {orderedBranches.map((b) => (
+                <BranchRow key={`${b.remote ? "r" : "l"}-${b.name}`} branch={b} />
+              ))}
+            </Card>
+          </section>
+        )}
+
+        {state.recentCommits.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <GitCommit className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Recent commits</h3>
+              <Badge variant="secondary" className="font-mono text-xs">
+                {state.recentCommits.length}
+              </Badge>
+            </div>
+            <Card className="gap-0 overflow-hidden py-0">
+              {state.recentCommits.map((c) => (
+                <div key={c.hash} className="flex items-start gap-3 border-t border-border px-4 py-2.5 first:border-t-0">
+                  <span className="mt-0.5 shrink-0 rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    {c.hash}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs text-foreground">{c.message}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">
+                      {c.author} · {c.relative}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          </section>
+        )}
+
+        {state.tags.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Tag className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Tags</h3>
+              <Badge variant="secondary" className="font-mono text-xs">
+                {state.tags.length}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {state.tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1 rounded-sm bg-secondary px-2 py-1 font-mono text-[11px] text-foreground"
+                >
+                  <Tag className="size-3" />
+                  {t}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <GitBranch className="size-4 text-muted-foreground" />
