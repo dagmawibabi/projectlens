@@ -102,13 +102,53 @@ export interface GitIssue {
   recommendation?: string
 }
 
+export interface GitCommit {
+  hash: string
+  message: string
+  author: string
+  relative: string
+}
+
+export interface GitBranch {
+  name: string
+  current: boolean
+  /** True for remote-tracking branches (e.g. origin/main). */
+  remote: boolean
+  /** Upstream tracking ref, if the branch tracks one. */
+  upstream?: string
+  /** Relative time of the branch tip's last commit. */
+  lastCommitRelative?: string
+}
+
+/** Parsed from the `origin` remote URL; powers the repo link in the UI. */
+export interface GitRemoteInfo {
+  provider: "GitHub" | "GitLab" | "Bitbucket" | "Other"
+  owner: string
+  name: string
+  /** Browsable https URL for the repository. */
+  url: string
+  host: string
+}
+
 export interface GitState {
   branch: string
   defaultBranch: string
   ahead: number
   behind: number
   remote: string
+  /** Structured remote metadata (owner/name/url), when an origin is set. */
+  remoteInfo?: GitRemoteInfo
   lastCommit: { hash: string; message: string; author: string; relative: string }
+  /** Most recent commits on the current branch, newest first. */
+  recentCommits: GitCommit[]
+  /** Local and remote-tracking branches. */
+  branches: GitBranch[]
+  /** Lightweight tags, newest first. */
+  tags: string[]
+  /** Git-ignored files: total count plus a sample for display. */
+  ignored: { count: number; samples: string[] }
+  /** Number of stash entries. */
+  stashes: number
   changes: GitFileChange[]
   staged: number
   contributors: number
@@ -769,13 +809,42 @@ export const projectInsights: ProjectInsights = {
       defaultBranch: "main",
       ahead: 3,
       behind: 7,
-      remote: "github.com/acme/storefront",
+      remote: "git@github.com:acme/storefront.git",
+      remoteInfo: {
+        provider: "GitHub",
+        owner: "acme",
+        name: "storefront",
+        host: "github.com",
+        url: "https://github.com/acme/storefront",
+      },
       lastCommit: {
         hash: "a1b2c3d",
         message: "wip: tweak price tag layout",
         author: "Jordan Lee",
         relative: "2 hours ago",
       },
+      recentCommits: [
+        { hash: "a1b2c3d", message: "wip: tweak price tag layout", author: "Jordan Lee", relative: "2 hours ago" },
+        { hash: "9f2a11c", message: "feat: redesign checkout summary", author: "Jordan Lee", relative: "5 hours ago" },
+        { hash: "7c4e0b2", message: "refactor: extract usePricing hook", author: "Sam Rivera", relative: "1 day ago" },
+        { hash: "3d9f8a1", message: "fix: cart total rounding error", author: "Priya Nair", relative: "2 days ago" },
+        { hash: "b50c7e4", message: "chore: bump next to 16.0.1", author: "Jordan Lee", relative: "3 days ago" },
+        { hash: "e1a2d3f", message: "test: add checkout e2e coverage", author: "Sam Rivera", relative: "4 days ago" },
+      ],
+      branches: [
+        { name: "feat/checkout-redesign", current: true, remote: false, upstream: "origin/feat/checkout-redesign", lastCommitRelative: "2 hours ago" },
+        { name: "main", current: false, remote: false, upstream: "origin/main", lastCommitRelative: "5 hours ago" },
+        { name: "fix/cart-rounding", current: false, remote: false, lastCommitRelative: "2 days ago" },
+        { name: "origin/main", current: false, remote: true, lastCommitRelative: "5 hours ago" },
+        { name: "origin/feat/checkout-redesign", current: false, remote: true, lastCommitRelative: "2 hours ago" },
+        { name: "origin/release/2.4", current: false, remote: true, lastCommitRelative: "3 weeks ago" },
+      ],
+      tags: ["v2.3.0", "v2.2.1", "v2.2.0", "v2.1.0"],
+      ignored: {
+        count: 5,
+        samples: ["node_modules", ".next", ".env.local", "coverage", "*.log"],
+      },
+      stashes: 2,
       changes: [
         { path: "app/checkout/actions.ts", status: "modified" },
         { path: "components/price-tag.tsx", status: "modified" },

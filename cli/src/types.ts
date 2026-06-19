@@ -4,6 +4,8 @@
  * `lib/schema.ts` in the dashboard package for the mirrored client types).
  */
 
+import type { ProjectInsights } from "./insights-types.js"
+
 export type Severity =
   | "error"
   | "warning"
@@ -12,6 +14,9 @@ export type Severity =
   | "medium"
   | "low"
   | "info"
+
+export type { ProjectInsights } from "./insights-types.js"
+export type * from "./insights-types.js"
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun"
 
@@ -39,6 +44,8 @@ export interface LintMessage {
   message: string
   /** True when ESLint can auto-fix this with `--fix`. */
   fixable: boolean
+  /** Optional source snippet for inline preview (lines around the issue). */
+  snippet?: { startLine: number; code: string }
 }
 
 export interface LintResult {
@@ -63,10 +70,39 @@ export interface TypeDiagnostic {
   related: { message: string; depth: number }[]
 }
 
+export type TypeKind = "interface" | "type" | "enum" | "class" | "function"
+
+/** A property/member of a declared type. */
+export interface TypeMember {
+  name: string
+  type: string
+  optional?: boolean
+  readonly?: boolean
+  doc?: string
+}
+
+/** A type/interface/enum declared in the project source. */
+export interface TypeDefinition {
+  id: string
+  name: string
+  kind: TypeKind
+  filePath: string
+  line: number
+  exported: boolean
+  references: number
+  generics?: string[]
+  extendsFrom?: string[]
+  members: TypeMember[]
+  source: string
+  doc?: string
+}
+
 export interface TypeCheckResult {
   diagnostics: TypeDiagnostic[]
   unavailable?: boolean
   note?: string
+  /** Declared types discovered in the project, for the explorer. */
+  definitions?: TypeDefinition[]
 }
 
 /* -------------------------------- Security -------------------------------- */
@@ -96,6 +132,7 @@ export interface SecurityFinding {
   suggestedFix?: string
   confidence: number
   reference?: string
+  snippet?: { startLine: number; code: string }
 }
 
 export interface DependencyVuln {
@@ -116,6 +153,59 @@ export interface SecurityResult {
   dependencies: DependencyVuln[]
   /** True when the AI pass was skipped (no key / --no-ai). */
   skipped?: boolean
+}
+
+/* ------------------------------- Dependencies ----------------------------- */
+
+export type DependencyKind = "direct" | "dev" | "peer" | "transitive"
+
+export type DependencyIssueKind =
+  | "vulnerability"
+  | "outdated"
+  | "deprecated"
+  | "unused"
+  | "missing"
+  | "license"
+
+export interface DependencyFinding {
+  id: string
+  name: string
+  current: string
+  latest?: string
+  type: DependencyKind
+  kind: DependencyIssueKind
+  severity: Severity
+  title: string
+  detail: string
+  recommendation?: string
+  fixedIn?: string
+  cves?: string[]
+  license?: string
+  usedIn?: string[]
+  reference?: string
+}
+
+export interface DependencyNode {
+  id: string
+  version: string
+  type: DependencyKind
+  depth: number
+  sizeKb?: number
+  dependencies: string[]
+  flagged?: boolean
+  severity?: Severity
+}
+
+export interface DependencyGraph {
+  root: string
+  nodes: DependencyNode[]
+}
+
+export interface DependencyResult {
+  counts: { total: number; direct: number; dev: number; transitive: number }
+  findings: DependencyFinding[]
+  manifestPath: string
+  graph?: DependencyGraph
 }
 
 /* --------------------------------- Report --------------------------------- */
@@ -146,6 +236,7 @@ export interface AnalysisReport {
   lint: LintResult
   types: TypeCheckResult
   security: SecurityResult
+  deps: DependencyResult
 }
 
 /* --------------------------------- Trends --------------------------------- */
@@ -160,9 +251,22 @@ export interface TrendPoint {
   securityFindings: number
 }
 
+/* --------------------------------- Bundle --------------------------------- */
+
+/**
+ * Everything the dashboard needs to render, emitted as one payload from
+ * `/api/state` and streamed over the WebSocket. Mirrors the `<Dashboard>`
+ * component props on the client.
+ */
+export interface DashboardState {
+  report: AnalysisReport
+  insights: ProjectInsights
+  history: TrendPoint[]
+}
+
 /* ---------------------------- Streaming events ---------------------------- */
 
-export type RunPhase = "detect" | "lint" | "types" | "deps" | "security"
+export type RunPhase = "detect" | "lint" | "types" | "deps" | "security" | "insights"
 
 export type RunEvent =
   | {
@@ -175,3 +279,4 @@ export type RunEvent =
       security?: SecurityResult
     }
   | { type: "report"; report: AnalysisReport }
+  | { type: "state"; state: DashboardState }
