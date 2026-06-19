@@ -36,6 +36,9 @@ export interface EnvVariable {
   note: string
   /** Masked sample value when known. */
   sample?: string
+  /** Raw, unmasked value parsed from the local env file. Read only from the
+   *  developer's own machine and revealed behind an explicit toggle. */
+  value?: string
 }
 
 export interface EnvResult {
@@ -587,6 +590,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local", ".env.example"],
         note: "Server-only connection string. Correctly excluded from the client bundle.",
         sample: "postgres://••••@db.neon.tech/main",
+        value: "postgres://app:s3cr3t_pw@db.neon.tech/main?sslmode=require",
       },
       {
         key: "STRIPE_SECRET_KEY",
@@ -597,6 +601,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local"],
         note: "Secret key is imported in a Client Component (price-tag.tsx). It will be inlined into the browser bundle and leak to every visitor.",
         sample: "sk_live_••••••••",
+        value: "sk_live_51Hx9aBcDeFgHiJkLmNoPqRsT",
       },
       {
         key: "NEXT_PUBLIC_API_URL",
@@ -607,6 +612,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local", ".env.example"],
         note: "Public client variable, correctly prefixed with NEXT_PUBLIC_.",
         sample: "https://api.storefront.dev",
+        value: "https://api.storefront.dev",
       },
       {
         key: "REDIS_URL",
@@ -626,6 +632,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local"],
         note: "Used and defined locally but missing from .env.example, so new contributors won't know to set it.",
         sample: "https://••••@sentry.io/123",
+        value: "https://a1b2c3d4@o123456.ingest.sentry.io/4505123",
       },
       {
         key: "OPENAI_API_KEY",
@@ -636,6 +643,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local", ".env.example"],
         note: "Server-only secret, used inside a Route Handler. Good.",
         sample: "sk-••••••••",
+        value: "sk-proj-AbC123XyZ456DeF789GhI",
       },
       {
         key: "NEXT_PUBLIC_GA_ID",
@@ -646,6 +654,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local", ".env.example"],
         note: "Analytics id, safe to expose to the client.",
         sample: "G-XXXXXXX",
+        value: "G-7H9K2L4M8N",
       },
       {
         key: "LEGACY_TOKEN",
@@ -656,6 +665,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local"],
         note: "Defined in .env.local but never referenced anywhere in the codebase. Safe to remove.",
         sample: "••••",
+        value: "legacy-tok-9920-unused",
       },
       {
         key: "SMTP_PASSWORD",
@@ -666,6 +676,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local"],
         note: "Declared with an empty value. Email sending in lib/email.ts will fail silently.",
         sample: "(empty)",
+        value: "",
       },
       {
         key: "AUTH_SECRET",
@@ -676,6 +687,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local", ".env.example"],
         note: "Session signing secret, server-only. Good.",
         sample: "••••••••",
+        value: "9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c",
       },
       {
         key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -686,6 +698,7 @@ export const projectInsights: ProjectInsights = {
         definedIn: [".env.local"],
         note: "Public anon key — safe to expose, but missing from .env.example.",
         sample: "eyJ••••",
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo-anon-key",
       },
     ],
   },

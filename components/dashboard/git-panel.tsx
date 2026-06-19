@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   GitBranch,
   GitCommit,
@@ -15,6 +16,7 @@ import {
   GitGraph,
   GitFork,
   Tag,
+  Eye,
   EyeOff,
   Archive,
   ExternalLink,
@@ -177,6 +179,7 @@ function BranchRow({ branch }: { branch: GitBranchType }) {
 
 export function GitPanel({ git }: { git: GitResult }) {
   const { state } = git
+  const [showRemote, setShowRemote] = useState(false)
   const issues = [...git.issues].sort(bySeverityDesc)
   const localBranches = state.branches.filter((b) => !b.remote)
   const remoteBranches = state.branches.filter((b) => b.remote)
@@ -292,8 +295,34 @@ export function GitPanel({ git }: { git: GitResult }) {
           </InsightCard>
         )}
 
-        <InsightCard title="Remote">
-          <p className="break-all font-mono text-xs text-muted-foreground">{state.remote || "No remote configured"}</p>
+        <InsightCard
+          title="Remote"
+          action={
+            state.remote ? (
+              <button
+                type="button"
+                onClick={() => setShowRemote((v) => !v)}
+                aria-pressed={showRemote}
+                aria-label={showRemote ? "Hide remote URL" : "Reveal remote URL"}
+                className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 font-mono text-[10px] uppercase text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showRemote ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                {showRemote ? "Hide" : "Reveal"}
+              </button>
+            ) : undefined
+          }
+        >
+          {state.remote ? (
+            showRemote ? (
+              <p className="break-all font-mono text-xs text-foreground">{state.remote}</p>
+            ) : (
+              <p className="font-mono text-xs tracking-widest text-muted-foreground" aria-hidden>
+                {"•".repeat(28)}
+              </p>
+            )
+          ) : (
+            <p className="font-mono text-xs text-muted-foreground">No remote configured</p>
+          )}
         </InsightCard>
       </aside>
 

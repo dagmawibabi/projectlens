@@ -26,6 +26,9 @@ export interface EnvVariable {
   definedIn: string[]
   note: string
   sample?: string
+  /** Raw, unmasked value parsed from the local env file. Read only from the
+   *  developer's own machine and revealed behind an explicit toggle. */
+  value?: string
 }
 
 export interface EnvResult {

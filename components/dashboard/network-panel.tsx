@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Globe, ShieldCheck, Lock, Unlock, ChevronRight, ArrowUpRight } from "lucide-react"
+import { Globe, ShieldCheck, Lock, Unlock, ChevronRight, ArrowUpRight, Filter } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { InsightCard, ProportionBar, CountList } from "./insights"
@@ -66,24 +66,37 @@ function CallRow({ call }: { call: NetworkCall }) {
 
 export function NetworkPanel({ network }: { network: NetworkResult }) {
   const [filter, setFilter] = useState<Filter>("all")
+  const [method, setMethod] = useState<string>("all")
 
   const sorted = useMemo(
     () => [...network.calls].sort((a, b) => worstSeverity(b) - worstSeverity(a)),
     [network.calls],
   )
 
+  // Distinct request methods present in the scan, ordered by frequency, with a
+  // leading "All" entry. Drives the secondary method filter bar.
+  const methodTabs = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const c of network.calls) map.set(c.method, (map.get(c.method) ?? 0) + 1)
+    const rows = [...map.entries()].sort((a, b) => b[1] - a[1])
+    return [{ key: "all", count: network.calls.length }, ...rows.map(([key, count]) => ({ key, count }))]
+  }, [network.calls])
+
   const filtered = useMemo(() => {
-    switch (filter) {
-      case "external":
-        return sorted.filter((c) => c.external)
-      case "insecure":
-        return sorted.filter((c) => !c.secure)
-      case "issues":
-        return sorted.filter((c) => c.issues.length > 0)
-      default:
-        return sorted
-    }
-  }, [sorted, filter])
+    const byCategory = (() => {
+      switch (filter) {
+        case "external":
+          return sorted.filter((c) => c.external)
+        case "insecure":
+          return sorted.filter((c) => !c.secure)
+        case "issues":
+          return sorted.filter((c) => c.issues.length > 0)
+        default:
+          return sorted
+      }
+    })()
+    return method === "all" ? byCategory : byCategory.filter((c) => c.method === method)
+  }, [sorted, filter, method])
 
   const categoryRows = useMemo(() => {
     const map = new Map<string, number>()
@@ -176,6 +189,31 @@ export function NetworkPanel({ network }: { network: NetworkResult }) {
             </button>
           ))}
         </div>
+
+        {methodTabs.length > 2 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 pr-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <Filter className="size-3.5" />
+              Method
+            </span>
+            {methodTabs.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setMethod(m.key)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[11px] uppercase transition-colors",
+                  method === m.key
+                    ? "border-foreground/30 bg-foreground/[0.06] text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m.key === "all" ? "All" : m.key}
+                <span className="tabular-nums text-muted-foreground">{m.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <Globe className="size-4 text-muted-foreground" />
