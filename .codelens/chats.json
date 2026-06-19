@@ -66,5 +66,129 @@
         ]
       }
     ]
+  },
+  {
+    "id": "test_curl_1",
+    "title": "Say hello in 3 words",
+    "model": "google/gemini-2.5-flash",
+    "createdAt": "2026-06-19T03:27:19.558Z",
+    "updatedAt": "2026-06-19T03:27:20.594Z",
+    "seed": null,
+    "messages": [
+      {
+        "id": "m1",
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Say hello in 3 words"
+          }
+        ]
+      },
+      {
+        "id": "",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello there!",
+            "providerMetadata": {
+              "gateway": {
+                "generationId": "gen_01KVEYPCZCSX50D8WM3BCPX271"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "32b1f7db-c4e5-448b-9519-bb4e54b0a74e",
+    "title": "Loads over plain HTTP — browsers will block this as mixed content on an HTTPS site.",
+    "model": "google/gemini-2.5-flash",
+    "createdAt": "2026-06-19T03:27:47.699Z",
+    "updatedAt": "2026-06-19T03:27:50.881Z",
+    "seed": {
+      "source": "network",
+      "title": "Loads over plain HTTP — browsers will block this as mixed content on an HTTPS site.",
+      "summary": "GET request to http://legacy-tracker.net/collect via image. 2 issues detected.\nSuggested direction: Loads over plain HTTP — browsers will block this as mixed content on an HTTPS site. Mixed-content request from a secure page; the pixel will be dropped silently.",
+      "filePath": "components/analytics/legacy-pixel.tsx",
+      "line": 12,
+      "severity": "high"
+    },
+    "messages": [
+      {
+        "parts": [
+          {
+            "type": "text",
+            "text": "Explain this issue in plain language"
+          }
+        ],
+        "id": "CTXLcRZPY25LXmgL",
+        "role": "user"
+      },
+      {
+        "id": "",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Your website is trying to load a tracking pixel from `http://legacy-tracker.net/collect` using an insecure connection (HTTP), but your website itself is secure (HTTPS).\n\nThis is called **mixed content**. Modern web browsers will typically block these insecure requests from secure pages because:\n\n1.  **Security Risk**: Even a small insecure asset can potentially be tampered with or expose user information, undermining the overall security of your HTTPS page.\n2.  **User Experience**: Browsers might show security warnings to users, or simply silently block the content.\n\nIn this specific case, the analytics pixel will **silently fail to load**. This means your application won't be able to track user activity as intended, leading to missing or inaccurate analytics data.",
+            "providerMetadata": {
+              "gateway": {
+                "generationId": "gen_01KVEYQ8E9491KGJP7W4ST31EA"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cde6dd58-0b45-4f1d-be68-9ecd9e54548e",
+    "title": "What is XSS in one sentence?",
+    "model": "google/gemini-2.5-flash",
+    "createdAt": "2026-06-19T03:28:12.977Z",
+    "updatedAt": "2026-06-19T03:28:14.034Z",
+    "seed": null,
+    "messages": [
+      {
+        "parts": [
+          {
+            "type": "text",
+            "text": "What is XSS in one sentence?"
+          }
+        ],
+        "id": "ukeI3dyukiw91xVR",
+        "role": "user"
+      },
+      {
+        "id": "",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "XSS (Cross-Site Scripting) is a web security vulnerability that allows an attacker to inject malicious client-side scripts into web pages viewed by other users.",
+            "providerMetadata": {
+              "gateway": {
+                "generationId": "gen_01KVEYR14VTRA7QP38YR065XF4"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      }
+    ]
   }
 ]

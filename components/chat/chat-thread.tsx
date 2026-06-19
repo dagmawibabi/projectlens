@@ -179,8 +179,9 @@ export function ChatThread({
         )}
       </div>
 
-      {/* Composer */}
-      <div className="shrink-0 border-t border-border bg-card/50 px-4 py-3">
+      {/* Composer — extra bottom padding keeps the send button clear of the
+          global demo-data banner pinned to the viewport bottom. */}
+      <div className="shrink-0 border-t border-border bg-card/50 px-4 py-3 pb-14 sm:pb-3">
         <form
           onSubmit={(e) => {
             e.preventDefault()
