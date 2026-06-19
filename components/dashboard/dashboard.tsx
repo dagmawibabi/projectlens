@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Webhook,
   Route,
+  LineChart,
 } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/select"
 import { RunHeader } from "./run-header"
 import { OverviewPanel } from "./overview-panel"
+import { TrendsPanel } from "./trends-panel"
 import { LintPanel } from "./lint-panel"
 import { TypesPanel } from "./types-panel"
 import { SecurityPanel } from "./security-panel"
@@ -77,7 +79,12 @@ interface NavGroup {
  */
 function buildNavGroups(authPresent: boolean, apiPresent: boolean): NavGroup[] {
   return [
-    { items: [{ value: "overview", label: "Overview", icon: LayoutDashboard }] },
+    {
+      items: [
+        { value: "overview", label: "Overview", icon: LayoutDashboard },
+        { value: "trends", label: "Trends", icon: LineChart },
+      ],
+    },
     {
       label: "Code Quality",
       items: [
@@ -404,6 +411,9 @@ export function Dashboard({
               <div className="min-w-0">
                 <TabsContent value="overview">
                   <OverviewPanel report={report} history={history} insights={insights} />
+                </TabsContent>
+                <TabsContent value="trends">
+                  <TrendsPanel history={history} report={report} />
                 </TabsContent>
                 <TabsContent value="lint">
                   <LintPanel lint={lint} />
