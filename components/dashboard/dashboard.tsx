@@ -25,6 +25,7 @@ import {
   Webhook,
   Route,
   LineChart,
+  ClipboardList,
 } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"

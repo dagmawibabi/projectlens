@@ -18,6 +18,8 @@ import {
   Globe,
   Accessibility,
   Sparkles,
+  ClipboardCheck,
+  ClipboardList,
 } from "lucide-react"
 import {
   Sheet,
@@ -38,6 +40,7 @@ import { Badge } from "@/components/ui/badge"
 import { severityStyle } from "@/lib/severity"
 import { getFileContent } from "@/lib/file-contents"
 import { EDITORS, absolutePath, issueDocs, type Issue } from "@/lib/issues"
+import { addTaskFromIssue } from "@/lib/tasks"
 import type { ChatSeed } from "@/lib/chat-types"
 import { cn } from "@/lib/utils"
 
@@ -415,6 +418,7 @@ export function InspectorProvider({
                       Ask AI
                     </button>
                   )}
+                  <TrackTaskButton issue={issue} />
                   {issue.fixable && (
                     <span className="rounded-sm bg-[color:var(--sev-ok)]/12 px-2 py-1 font-mono text-[11px] text-[color:var(--sev-ok)]">
                       auto-fixable
@@ -672,6 +676,34 @@ export function InspectorProvider({
         </SheetContent>
       </Sheet>
     </InspectorContext.Provider>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* TrackTaskButton — captures an issue into the local task board       */
+/* ------------------------------------------------------------------ */
+
+function TrackTaskButton({ issue }: { issue: Issue }) {
+  const [state, setState] = useState<"idle" | "added" | "exists">("idle")
+
+  function track() {
+    const { created } = addTaskFromIssue(issue)
+    setState(created ? "added" : "exists")
+    window.setTimeout(() => setState("idle"), 1600)
+  }
+
+  const label = state === "added" ? "Tracked" : state === "exists" ? "Already tracked" : "Track task"
+  const Icon = state === "idle" ? ClipboardList : ClipboardCheck
+
+  return (
+    <button
+      type="button"
+      onClick={track}
+      className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-foreground transition-colors hover:bg-secondary"
+    >
+      <Icon className="size-3.5 text-muted-foreground" />
+      {label}
+    </button>
   )
 }
 
