@@ -825,6 +825,10 @@ export const projectInsights: ProjectInsights = {
         note: "Server-only connection string. Correctly excluded from the client bundle.",
         sample: "postgres://••••@db.neon.tech/main",
         value: "postgres://app:s3cr3t_pw@db.neon.tech/main?sslmode=require",
+        values: [
+          { file: ".env.local", value: "postgres://app:s3cr3t_pw@db.neon.tech/main?sslmode=require" },
+          { file: ".env.example", value: "postgres://app:YOUR_PASSWORD@db.neon.tech/main?sslmode=require" },
+        ],
       },
       {
         key: "STRIPE_SECRET_KEY",
@@ -847,6 +851,10 @@ export const projectInsights: ProjectInsights = {
         note: "Public client variable, correctly prefixed with NEXT_PUBLIC_.",
         sample: "https://api.storefront.dev",
         value: "https://api.storefront.dev",
+        values: [
+          { file: ".env.local", value: "https://api.storefront.dev" },
+          { file: ".env.example", value: "https://api.storefront.dev" },
+        ],
       },
       {
         key: "REDIS_URL",
@@ -867,6 +875,10 @@ export const projectInsights: ProjectInsights = {
         note: "Used and defined locally but missing from .env.example, so new contributors won't know to set it.",
         sample: "https://••••@sentry.io/123",
         value: "https://a1b2c3d4@o123456.ingest.sentry.io/4505123",
+        values: [
+          { file: ".env.local", value: "https://a1b2c3d4@o123456.ingest.sentry.io/4505123" },
+          { file: ".env.example", value: null },
+        ],
       },
       {
         key: "OPENAI_API_KEY",
