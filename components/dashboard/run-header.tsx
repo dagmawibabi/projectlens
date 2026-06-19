@@ -19,25 +19,24 @@ interface RunHeaderProps {
 
 export function RunHeader({ project, aiEnabled, lastRunMs, lastRunLabel, onOpenSearch }: RunHeaderProps) {
   return (
-    <header className="flex flex-col gap-4 border-b border-border bg-card/50 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-border text-foreground">
-          <Terminal className="size-5" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-mono text-lg font-semibold text-foreground">CodeLens</h1>
-            {aiEnabled && (
-              <span className="inline-flex items-center gap-1 rounded-sm border border-border px-2 py-0.5 font-mono text-[10px] uppercase text-foreground">
-                <Sparkles className="size-2.5" />
-                AI
-              </span>
-            )}
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:px-6">
+      {/* Left: compact brand on mobile (sidebar owns it on desktop), project context on desktop */}
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border text-foreground">
+            <Terminal className="size-4" />
           </div>
-          <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-            {project.framework} · {project.packageManager} · {project.root}
-          </p>
+          <span className="font-mono text-sm font-semibold text-foreground">CodeLens</span>
+          {aiEnabled && (
+            <span className="inline-flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-foreground">
+              <Sparkles className="size-2.5" />
+              AI
+            </span>
+          )}
         </div>
+        <p className="hidden min-w-0 truncate font-mono text-xs text-muted-foreground lg:block">
+          {project.framework} · {project.packageManager} · {project.root}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">
@@ -53,7 +52,7 @@ export function RunHeader({ project, aiEnabled, lastRunMs, lastRunLabel, onOpenS
           className="inline-flex items-center gap-2 rounded-sm bg-primary px-4 py-2 font-mono text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Play className="size-4" />
-          Run checks
+          <span className="hidden sm:inline">Run checks</span>
         </Link>
         {onOpenSearch && (
           <button
