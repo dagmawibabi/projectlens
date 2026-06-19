@@ -226,17 +226,8 @@ export function Dashboard({
               ))}
             </nav>
 
-            {/* Search + settings pinned to the bottom of the rail */}
+            {/* Settings pinned to the bottom of the rail */}
             <div className="flex shrink-0 flex-col gap-1 border-t border-border p-3">
-              <button
-                type="button"
-                onClick={() => setPaletteOpen(true)}
-                className="flex w-full items-center gap-2 rounded-sm border border-border bg-background px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <Search className="size-3.5" />
-                <span className="flex-1 text-left">Search</span>
-                <kbd className="rounded-[3px] border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
-              </button>
               <Link
                 href="/settings"
                 prefetch
