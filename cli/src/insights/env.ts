@@ -108,9 +108,7 @@ export async function collectEnv(ctx: ScanContext): Promise<EnvResult> {
   }
 
   const exampleFile = ".env.example"
-  const exampleKeys = new Set(
-    (declaredIn.get("__never__") ?? []) && [...declaredIn].filter(([, f]) => f.includes(exampleFile)).map(([k]) => k),
-  )
+  const exampleKeys = new Set([...declaredIn].filter(([, f]) => f.includes(exampleFile)).map(([k]) => k))
 
   const allKeys = new Set<string>([...declaredIn.keys(), ...usedIn.keys()])
   const variables: EnvVariable[] = []
