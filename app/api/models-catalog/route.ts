@@ -32,6 +32,8 @@ export interface CatalogModel {
   releaseDate?: string
   lastUpdated?: string
   cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+  /** True if the model is available for free on OpenRouter. */
+  freeOpenRouter?: boolean
 }
 
 interface UpstreamModel {
@@ -56,14 +58,28 @@ interface UpstreamProvider {
   models?: Record<string, UpstreamModel>
 }
 
+/** Known free models on OpenRouter (input cost = $0). */
+const FREE_OPENROUTER_MODELS = new Set([
+  "openrouter/meta-llama/llama-3.2-90b",
+  "openrouter/meta-llama/llama-3.2-1b",
+  "openrouter/meta-llama/llama-3.1-405b-instruct",
+  "openrouter/meta-llama/llama-3-8b-instruct",
+  "openrouter/meta-llama/llama-2-13b",
+  "openrouter/openchat/openchat-3.5",
+  "openrouter/undi95/toppy-m-7b",
+  "openrouter/gryphe/mythomax-l2-13b",
+  "openrouter/cinematika/cinematika-7b",
+])
+
 function flatten(data: Record<string, UpstreamProvider>): CatalogModel[] {
   const out: CatalogModel[] = []
   for (const [providerId, provider] of Object.entries(data)) {
     const providerName = provider?.name ?? providerId
     const models = provider?.models ?? {}
     for (const [modelId, m] of Object.entries(models)) {
+      const fullId = `${providerId}/${modelId}`
       out.push({
-        id: `${providerId}/${modelId}`,
+        id: fullId,
         modelId,
         name: m.name ?? modelId,
         providerId,
@@ -80,6 +96,7 @@ function flatten(data: Record<string, UpstreamProvider>): CatalogModel[] {
         knowledge: m.knowledge,
         releaseDate: m.release_date,
         lastUpdated: m.last_updated,
+        freeOpenRouter: FREE_OPENROUTER_MODELS.has(fullId) || (providerId === "openrouter" && m.cost?.input === 0),
         cost: m.cost
           ? {
               input: m.cost.input,
