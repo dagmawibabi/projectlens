@@ -91,13 +91,53 @@ export interface GitIssue {
   recommendation?: string
 }
 
+export interface GitCommit {
+  hash: string
+  message: string
+  author: string
+  relative: string
+}
+
+export interface GitBranch {
+  name: string
+  current: boolean
+  /** True for remote-tracking branches (e.g. origin/main). */
+  remote: boolean
+  /** Upstream tracking ref, if the branch tracks one. */
+  upstream?: string
+  /** Relative time of the branch tip's last commit. */
+  lastCommitRelative?: string
+}
+
+/** Parsed from the `origin` remote URL; powers the repo link in the UI. */
+export interface GitRemoteInfo {
+  provider: "GitHub" | "GitLab" | "Bitbucket" | "Other"
+  owner: string
+  name: string
+  /** Browsable https URL for the repository. */
+  url: string
+  host: string
+}
+
 export interface GitState {
   branch: string
   defaultBranch: string
   ahead: number
   behind: number
   remote: string
+  /** Structured remote metadata (owner/name/url), when an origin is set. */
+  remoteInfo?: GitRemoteInfo
   lastCommit: { hash: string; message: string; author: string; relative: string }
+  /** Most recent commits on the current branch, newest first. */
+  recentCommits: GitCommit[]
+  /** Local and remote-tracking branches. */
+  branches: GitBranch[]
+  /** Lightweight tags, newest first. */
+  tags: string[]
+  /** Git-ignored files: total count plus a sample for display. */
+  ignored: { count: number; samples: string[] }
+  /** Number of stash entries. */
+  stashes: number
   changes: GitFileChange[]
   staged: number
   contributors: number

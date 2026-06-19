@@ -6,6 +6,9 @@ import type {
   GitState,
   GitFileChange,
   GitIssue,
+  GitBranch,
+  GitCommit,
+  GitRemoteInfo,
   CiWorkflow,
   CiStatus,
 } from "../types.js"
@@ -14,11 +17,47 @@ const exec = promisify(execFile)
 
 async function git(root: string, args: string[]): Promise<string | null> {
   try {
-    const { stdout } = await exec("git", args, { cwd: root, timeout: 8000, maxBuffer: 4_000_000 })
+    const { stdout } = await exec("git", args, { cwd: root, timeout: 8000, maxBuffer: 8_000_000 })
     return stdout.trim()
   } catch {
     return null
   }
+}
+
+/**
+ * Parses an `origin` remote URL (https or scp-style ssh) into structured repo
+ * metadata so the UI can render a "view on GitHub" link and owner/name.
+ */
+function parseRemote(url: string): GitRemoteInfo | undefined {
+  if (!url) return undefined
+  let host = ""
+  let path = ""
+
+  const ssh = url.match(/^[\w.-]+@([\w.-]+):(.+?)(?:\.git)?$/)
+  const https = url.match(/^https?:\/\/(?:[^@/]+@)?([\w.-]+)\/(.+?)(?:\.git)?$/)
+  if (ssh) {
+    host = ssh[1]
+    path = ssh[2]
+  } else if (https) {
+    host = https[1]
+    path = https[2]
+  } else {
+    return undefined
+  }
+
+  const segments = path.split("/").filter(Boolean)
+  if (segments.length < 2) return undefined
+  const owner = segments[0]
+  const name = segments[segments.length - 1]
+  const provider: GitRemoteInfo["provider"] = host.includes("github")
+    ? "GitHub"
+    : host.includes("gitlab")
+      ? "GitLab"
+      : host.includes("bitbucket")
+        ? "Bitbucket"
+        : "Other"
+
+  return { provider, owner, name, host, url: `https://${host}/${owner}/${name}` }
 }
 
 function parseStatus(porcelain: string): { changes: GitFileChange[]; staged: number } {
@@ -45,6 +84,40 @@ const CI_FILES: Array<{ glob: RegExp; provider: CiWorkflow["provider"] }> = [
   { glob: /^\.gitlab-ci\.ya?ml$/, provider: "GitLab CI" },
   { glob: /^\.circleci\/config\.ya?ml$/, provider: "CircleCI" },
 ]
+
+function parseRecentCommits(out: string): GitCommit[] {
+  const commits: GitCommit[] = []
+  for (const line of out.split("\n")) {
+    if (!line.trim()) continue
+    const [hash = "", message = "", author = "", iso = ""] = line.split("\u001f")
+    commits.push({
+      hash,
+      message: message || "(no message)",
+      author: author || "unknown",
+      relative: iso ? relativeTime(iso) : "unknown",
+    })
+  }
+  return commits
+}
+
+function parseBranches(out: string, current: string): GitBranch[] {
+  const branches: GitBranch[] = []
+  for (const line of out.split("\n")) {
+    if (!line.trim()) continue
+    const [name = "", head = "", upstream = "", rel = ""] = line.split("\u001f")
+    if (!name || name.endsWith("/HEAD")) continue
+    const remote = name.includes("/") && /^(origin|upstream)\//.test(name)
+    branches.push({
+      name,
+      current: head.trim() === "*" || name === current,
+      remote,
+      upstream: upstream || undefined,
+      lastCommitRelative: rel || undefined,
+    })
+  }
+  // De-dupe identical local/remote names while keeping both kinds.
+  return branches.slice(0, 50)
+}
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime()
@@ -89,20 +162,58 @@ export async function collectGit(ctx: ScanContext): Promise<GitResult> {
     }
   }
 
-  const [branch, statusOut, logOut, remoteOut, countOut, contribOut, defaultRef] = await Promise.all([
+  const [
+    branch,
+    statusOut,
+    recentLogOut,
+    remoteOut,
+    countOut,
+    contribOut,
+    defaultRef,
+    branchOut,
+    tagOut,
+    ignoredOut,
+    stashOut,
+  ] = await Promise.all([
     git(root, ["rev-parse", "--abbrev-ref", "HEAD"]),
     git(root, ["status", "--porcelain"]),
-    git(root, ["log", "-1", "--format=%h%x1f%s%x1f%an%x1f%aI"]),
+    // Recent commits on the current branch, newest first.
+    git(root, ["log", "-15", "--format=%h%x1f%s%x1f%an%x1f%aI"]),
     git(root, ["remote", "get-url", "origin"]),
     git(root, ["rev-list", "--count", "HEAD"]),
     git(root, ["shortlog", "-sn", "--all", "--no-merges"]),
     git(root, ["symbolic-ref", "refs/remotes/origin/HEAD"]),
+    // All branches (local + remote) with upstream + tip date.
+    git(root, [
+      "for-each-ref",
+      "--sort=-committerdate",
+      "--format=%(refname:short)%1f%(HEAD)%1f%(upstream:short)%1f%(committerdate:relative)",
+      "refs/heads",
+      "refs/remotes",
+    ]),
+    git(root, ["tag", "--sort=-creatordate"]),
+    git(root, ["ls-files", "--others", "--ignored", "--exclude-standard"]),
+    git(root, ["stash", "list"]),
   ])
 
   const { changes, staged } = parseStatus(statusOut ?? "")
-  const [hash = "", message = "", author = "", date = ""] = (logOut ?? "").split("\u001f")
+  const recentCommits = parseRecentCommits(recentLogOut ?? "")
+  const [hash = "", message = "", author = "", date = ""] = recentCommits.length
+    ? [
+        recentCommits[0].hash,
+        recentCommits[0].message,
+        recentCommits[0].author,
+        "",
+      ]
+    : ["", "", "", ""]
   const defaultBranch = defaultRef?.split("/").pop() ?? "main"
   const branchName = branch ?? "HEAD"
+  const branches = parseBranches(branchOut ?? "", branchName)
+  const tags = (tagOut ?? "").split("\n").map((t) => t.trim()).filter(Boolean).slice(0, 30)
+  const ignoredAll = (ignoredOut ?? "").split("\n").map((l) => l.trim()).filter(Boolean)
+  const ignored = { count: ignoredAll.length, samples: ignoredAll.slice(0, 12) }
+  const stashes = (stashOut ?? "").split("\n").filter((l) => l.trim()).length
+  const remoteInfo = parseRemote(remoteOut ?? "")
 
   let ahead = 0
   let behind = 0
@@ -122,12 +233,18 @@ export async function collectGit(ctx: ScanContext): Promise<GitResult> {
     ahead,
     behind,
     remote: remoteOut ?? "",
+    remoteInfo,
     lastCommit: {
       hash,
       message: message || "(no commits yet)",
       author: author || "unknown",
-      relative: date ? relativeTime(date) : "unknown",
+      relative: recentCommits[0]?.relative ?? (date ? relativeTime(date) : "unknown"),
     },
+    recentCommits,
+    branches,
+    tags,
+    ignored,
+    stashes,
     changes,
     staged,
     contributors,
@@ -265,7 +382,13 @@ function emptyState(): GitState {
     ahead: 0,
     behind: 0,
     remote: "",
+    remoteInfo: undefined,
     lastCommit: { hash: "", message: "(not a git repository)", author: "—", relative: "—" },
+    recentCommits: [],
+    branches: [],
+    tags: [],
+    ignored: { count: 0, samples: [] },
+    stashes: 0,
     changes: [],
     staged: 0,
     contributors: 0,
