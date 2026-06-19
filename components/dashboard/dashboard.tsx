@@ -21,7 +21,6 @@ import {
   Sparkles,
   Settings,
 } from "lucide-react"
-import Link from "next/link"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -51,6 +50,7 @@ import { TestsPanel } from "./tests-panel"
 import { InspectorProvider } from "./inspector"
 import { CommandPalette, type TabDef } from "./command-palette"
 import { EmptyState } from "./empty-state"
+import { SettingsView } from "@/components/settings/settings-view"
 import { RunDialog } from "@/components/run/run-dialog"
 import type { AnalysisReport, TrendPoint } from "@/lib/schema"
 import type { ProjectInsights } from "@/lib/project-insights"
@@ -101,6 +101,9 @@ const NAV_GROUPS: NavGroup[] = [
 /** Flat list of all tabs, in nav order, for the palette and shortcuts. */
 const TABS: TabDef[] = NAV_GROUPS.flatMap((g) => g.items)
 
+/** Settings lives outside the analysis nav but behaves like any other tab. */
+const SETTINGS_TAB: TabDef = { value: "settings", label: "Settings", icon: Settings }
+
 export function Dashboard({
   report,
   history,
@@ -143,7 +146,7 @@ export function Dashboard({
 
   const selectTab = useCallback((value: string) => setTab(value), [])
 
-  const activeTab = TABS.find((t) => t.value === tab) ?? TABS[0]
+  const activeTab = [...TABS, SETTINGS_TAB].find((t) => t.value === tab) ?? TABS[0]
 
   // Global keyboard shortcuts: Cmd/Ctrl+K opens search; number keys switch tabs.
   useEffect(() => {
@@ -238,16 +241,22 @@ export function Dashboard({
               ))}
             </nav>
 
-            {/* Settings pinned to the bottom of the rail */}
+            {/* Settings pinned to the bottom of the rail — behaves like a tab */}
             <div className="flex shrink-0 flex-col gap-1 border-t border-border p-3">
-              <Link
-                href="/settings"
-                prefetch
-                className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+              <button
+                type="button"
+                aria-current={tab === "settings" ? "page" : undefined}
+                onClick={() => setTab("settings")}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors",
+                  tab === "settings"
+                    ? "bg-secondary font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
+                )}
               >
                 <Settings className="size-4 shrink-0" />
                 <span className="flex-1 text-left">Settings</span>
-              </Link>
+              </button>
             </div>
           </aside>
 
@@ -265,7 +274,7 @@ export function Dashboard({
               onRunChecks={() => setRunOpen(true)}
             />
 
-            {empty ? (
+            {empty && tab !== "settings" ? (
               <EmptyState
                 onRunChecks={() => setRunOpen(true)}
                 onLoadDemo={() => onToggleDemo?.(true)}
@@ -298,6 +307,15 @@ export function Dashboard({
                         ))}
                       </SelectGroup>
                     ))}
+                    <SelectGroup>
+                      <SelectLabel>Configuration</SelectLabel>
+                      <SelectItem value={SETTINGS_TAB.value}>
+                        <span className="flex items-center gap-2">
+                          <SETTINGS_TAB.icon className="size-4 text-muted-foreground" />
+                          {SETTINGS_TAB.label}
+                        </span>
+                      </SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <button
@@ -353,6 +371,9 @@ export function Dashboard({
                 </TabsContent>
                 <TabsContent value="docs">
                   <DocsPanel docs={insights.docs} />
+                </TabsContent>
+                <TabsContent value="settings">
+                  <SettingsView />
                 </TabsContent>
               </div>
             </Tabs>
