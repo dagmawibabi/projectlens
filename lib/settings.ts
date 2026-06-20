@@ -152,6 +152,12 @@ export interface CodeLensSettings {
   githubToken: string
   /** Optional default repo (owner/repo) for the Git & Releases tabs. */
   defaultRepo: string
+  /**
+   * Display-only: when true, the UI layers subtle semantic hues over the
+   * monochrome theme (severity tags, charts, hovers, focus rings). Applied via
+   * the `accents` class on <html>; never written to the CLI config.
+   */
+  colorAccents: boolean
 }
 
 export const DEFAULT_SETTINGS: CodeLensSettings = {
@@ -165,9 +171,20 @@ export const DEFAULT_SETTINGS: CodeLensSettings = {
   persistChats: true,
   githubToken: "",
   defaultRepo: "",
+  colorAccents: false,
 }
 
 const STORAGE_KEY = "codelens.settings.v1"
+
+/**
+ * Toggle the `accents` class on <html>, which swaps the monochrome severity /
+ * chart / accent tokens for subtly-hued ones (see globals.css). Safe to call on
+ * the server (no-op) and idempotent.
+ */
+export function applyColorAccents(on: boolean) {
+  if (typeof document === "undefined") return
+  document.documentElement.classList.toggle("accents", on)
+}
 
 export function loadSettings(): CodeLensSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS
