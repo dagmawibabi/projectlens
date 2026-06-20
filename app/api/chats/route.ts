@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { listChats, upsertChat } from "@/lib/chat-store.server"
 import { chatToSummary, type ChatSeed, type StoredChat } from "@/lib/chat-types"
 
+// Served live by the CLI server at runtime; excluded from the static export.
+export const dynamic = "force-dynamic"
+
 /** GET /api/chats — history list (summaries, most recent first). */
 export async function GET() {
   const chats = await listChats()

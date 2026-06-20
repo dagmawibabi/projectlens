@@ -10,6 +10,9 @@ import path from "node:path"
  */
 const CODELENS_FILES = ["history.json", "latest.json", "insights.json", "chats.json"]
 
+// Served live by the CLI server at runtime; excluded from the static export.
+export const dynamic = "force-dynamic"
+
 /**
  * DELETE /api/data — wipe persisted server-side data.
  *

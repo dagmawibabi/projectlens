@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { deleteChat, getChat, renameChat } from "@/lib/chat-store.server"
 
+// Served live by the CLI server at runtime; excluded from the static export.
+export const dynamic = "force-dynamic"
+
 /** GET /api/chats/:id — full chat (with messages) for hydration. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
