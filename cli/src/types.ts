@@ -153,6 +153,10 @@ export interface SecurityResult {
   dependencies: DependencyVuln[]
   /** True when the AI pass was skipped (no key / --no-ai). */
   skipped?: boolean
+  /** True when the AI pass ran but errored (e.g. model unreachable / bad output). */
+  failed?: boolean
+  /** Human-readable summary of what went wrong when `failed` is true. */
+  error?: string
 }
 
 /* ------------------------------- Dependencies ----------------------------- */
