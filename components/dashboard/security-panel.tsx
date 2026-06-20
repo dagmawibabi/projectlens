@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ShieldAlert, ShieldCheck, ChevronRight } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ShieldAlert, ShieldCheck, ChevronRight, RotateCcw, Loader2, AlertTriangle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { InsightCard, ProportionBar, CountList } from "./insights"
@@ -57,8 +57,69 @@ type SevFilter = "all" | SecurityFinding["severity"]
 
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"] as const
 
+/**
+ * Triggers a security-only rescan (re-runs just the AI security pass on the
+ * connected CodeLens CLI backend, reusing every other result). Completion is
+ * detected when fresh data arrives over the live socket and swaps the
+ * `security` prop reference — at which point the spinner clears.
+ */
+function useSecurityRescan(security: SecurityResult) {
+  const [rescanning, setRescanning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const prev = useRef(security)
+
+  // New analysis data landed → the rescan is done.
+  useEffect(() => {
+    if (prev.current !== security) {
+      prev.current = security
+      setRescanning(false)
+    }
+  }, [security])
+
+  // Safety net so the button can never spin forever if no update arrives.
+  useEffect(() => {
+    if (!rescanning) return
+    const t = window.setTimeout(() => setRescanning(false), 120_000)
+    return () => window.clearTimeout(t)
+  }, [rescanning])
+
+  const rescan = useCallback(async () => {
+    setError(null)
+    setRescanning(true)
+    try {
+      const res = await fetch("/api/run?scope=security", { method: "POST" })
+      // 409 = a run is already in progress; its result will still arrive.
+      if (!res.ok && res.status !== 409) {
+        throw new Error(
+          res.status === 501 ? "Rescan needs the CodeLens CLI backend" : `Rescan failed (${res.status})`,
+        )
+      }
+    } catch (err) {
+      setRescanning(false)
+      setError(err instanceof Error ? err.message : "Rescan failed")
+    }
+  }, [])
+
+  return { rescanning, error, rescan }
+}
+
+function RescanButton({ rescanning, onClick }: { rescanning: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={rescanning}
+      className="inline-flex items-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {rescanning ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+      {rescanning ? "Rescanning…" : "Rescan security"}
+    </button>
+  )
+}
+
 export function SecurityPanel({ security }: { security: SecurityResult }) {
   const [filter, setFilter] = useState<SevFilter>("all")
+  const { rescanning, error: rescanError, rescan } = useSecurityRescan(security)
 
   const sortedFindings = useMemo(() => [...security.findings].sort(bySeverityDesc), [security.findings])
 
@@ -108,6 +169,8 @@ export function SecurityPanel({ security }: { security: SecurityResult }) {
             No AI key was configured. Set AI_GATEWAY_API_KEY to enable the code review and dependency prioritization.
           </p>
         </div>
+        <RescanButton rescanning={rescanning} onClick={rescan} />
+        {rescanError && <p className="font-mono text-xs text-[color:var(--sev-critical)]">{rescanError}</p>}
       </Card>
     )
   }
@@ -166,6 +229,19 @@ export function SecurityPanel({ security }: { security: SecurityResult }) {
 
       {/* Main findings filtered by severity */}
       <div className="flex min-w-0 flex-col gap-3">
+        {(security.failed || rescanError) && (
+          <Card className="flex items-start gap-3 border-l-2 border-l-[color:var(--sev-high)] bg-[color:var(--sev-high)]/[0.06] p-4">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[color:var(--sev-high)]" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">AI security review error</p>
+              <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
+                {rescanError ?? security.error ?? "The AI review failed. Results below may be incomplete."}
+              </p>
+            </div>
+            <RescanButton rescanning={rescanning} onClick={rescan} />
+          </Card>
+        )}
+
         {security.findings.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 rounded-sm border border-border bg-card p-1">
             {filterTabs.map((t) => (
@@ -191,7 +267,14 @@ export function SecurityPanel({ security }: { security: SecurityResult }) {
           <Badge variant="secondary" className="font-mono text-xs">
             {filtered.length}
           </Badge>
-          <span className="ml-auto font-mono text-xs text-muted-foreground">click a finding for full detail</span>
+          <span className="ml-auto hidden font-mono text-xs text-muted-foreground sm:inline">
+            click a finding for full detail
+          </span>
+          {!security.failed && !rescanError && (
+            <div className="ml-auto sm:ml-0">
+              <RescanButton rescanning={rescanning} onClick={rescan} />
+            </div>
+          )}
         </div>
         {security.findings.length === 0 ? (
           <Card className="flex items-center gap-3 p-6 text-sm text-muted-foreground">

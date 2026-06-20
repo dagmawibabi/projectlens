@@ -87,9 +87,18 @@ async function main() {
   }
 
   // A single analysis pass: stream events, persist, and refresh live state.
-  const analyze = async () => {
+  // `scope: "security"` runs a fast targeted rescan that recomputes only the AI
+  // security pass and reuses the rest of the previous run.
+  const analyze = async (scope: "all" | "security" = "all") => {
     const priorHistory = await readHistory(cwd)
-    const { report, insights } = await runAnalysis({ cwd, ai, history: priorHistory, onEvent })
+    const { report, insights } = await runAnalysis({
+      cwd,
+      ai,
+      history: priorHistory,
+      onEvent,
+      scope,
+      prior: scope === "security" ? state.current : null,
+    })
     await saveRun(cwd, report, insights)
     const refreshed = { report, insights, history: await readHistory(cwd) }
     state.current = refreshed
@@ -100,8 +109,8 @@ async function main() {
   const server = await startServer({
     port: Number(opts.port) || 4321,
     state,
-    onRunRequest: async () => {
-      await analyze()
+    onRunRequest: async (scope) => {
+      await analyze(scope)
     },
     onClearData: (scope) => clearData(cwd, scope),
   })

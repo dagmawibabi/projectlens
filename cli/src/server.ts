@@ -40,8 +40,11 @@ export interface ServerState {
 export async function startServer(opts: {
   port: number
   state: ServerState
-  /** Triggers a fresh analysis when the dashboard requests one (POST /api/run). */
-  onRunRequest?: () => Promise<void> | void
+  /**
+   * Triggers a fresh analysis when the dashboard requests one (POST /api/run).
+   * `scope: "security"` requests a fast rescan of just the AI security pass.
+   */
+  onRunRequest?: (scope: "all" | "security") => Promise<void> | void
   /** Deletes persisted artifacts on disk (DELETE /api/data). */
   onClearData?: (scope: "all" | "runs" | "chats") => Promise<string[]> | string[]
 }): Promise<ServerHandle> {
@@ -94,12 +97,18 @@ export async function startServer(opts: {
         res.end(JSON.stringify({ ok: false, error: "a run is already in progress" }))
         return
       }
+      const scopeParam = url.searchParams.get("scope")
+      const scope = scopeParam === "security" ? "security" : "all"
       running = true
       res.writeHead(202, { "content-type": "application/json" })
-      res.end(JSON.stringify({ ok: true }))
-      // Run after responding; completion is broadcast over the socket.
+      res.end(JSON.stringify({ ok: true, scope }))
+      // Run after responding; completion is broadcast over the socket. A
+      // failure here must never crash the server — log it and reset the lock.
       Promise.resolve()
-        .then(() => onRunRequest())
+        .then(() => onRunRequest(scope))
+        .catch((err) => {
+          console.error("\x1b[31m[codelens]\x1b[0m run failed:", err)
+        })
         .finally(() => {
           running = false
         })

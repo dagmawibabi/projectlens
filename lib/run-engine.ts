@@ -248,12 +248,19 @@ function eventToLogs(event: RunEventLike): { level: LogLevel; text: string }[] {
         const s = event.security
         if (!s || s.skipped) return [{ level: "info", text: "AI security review skipped" }]
         const count = s.findings.length
-        return [
-          {
-            level: count > 0 ? "warn" : "success",
-            text: `Review complete — ${n(count, "finding")}, ${n(s.dependencies.length, "advisory").replace("advisorys", "advisories")}`,
-          },
-        ]
+        const lines: { level: LogLevel; text: string }[] = []
+        // Surface a partial/total failure instead of silently swallowing it.
+        if (s.failed || s.error) {
+          lines.push({
+            level: "error",
+            text: s.error ?? "AI security review failed",
+          })
+        }
+        lines.push({
+          level: s.failed ? "warn" : count > 0 ? "warn" : "success",
+          text: `Review complete — ${n(count, "finding")}, ${n(s.dependencies.length, "advisory").replace("advisorys", "advisories")}`,
+        })
+        return lines
       }
       case "insights":
         return [{ level: "success", text: "Project insights ready" }]
@@ -280,7 +287,7 @@ type RunEventLike =
       project?: { framework: string; packageManager: string }
       lint?: { errorCount: number; warningCount: number; fixableCount: number; unavailable?: boolean; note?: string }
       types?: { diagnostics: unknown[]; unavailable?: boolean; note?: string }
-      security?: { findings: unknown[]; dependencies: unknown[]; skipped?: boolean }
+      security?: { findings: unknown[]; dependencies: unknown[]; skipped?: boolean; failed?: boolean; error?: string }
     }
   | { type: "report"; report: { health?: { score?: number } } }
   | { type: "state"; state: unknown }

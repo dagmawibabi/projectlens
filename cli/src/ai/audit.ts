@@ -64,7 +64,12 @@ const findingSchema = z.object({
       description: z.string(),
       recommendation: z.string(),
       suggestedFix: z.string().nullable(),
-      confidence: z.number().min(0).max(1),
+      // Accept any number here and normalize later. Models routinely emit
+      // confidence on a 0–100 scale (e.g. 95) even when asked for 0–1, and a
+      // hard `.max(1)` constraint makes the whole structured response fail
+      // schema validation — crashing the entire audit. `normalizeConfidence`
+      // coerces both scales into a clean 0–1 range.
+      confidence: z.number().describe('Confidence from 0 to 1 (0.0–1.0).'),
       reference: z.string().nullable(),
     }),
   ),
@@ -124,7 +129,37 @@ export async function auditCode(
     endLine: f.endLine ?? undefined,
     suggestedFix: f.suggestedFix ?? undefined,
     reference: f.reference ?? undefined,
+    confidence: normalizeConfidence(f.confidence),
   }))
+}
+
+/**
+ * Coerce a model-reported confidence into a clean 0–1 fraction. Models often
+ * return a 0–100 percentage (e.g. 95) regardless of the prompt, so anything
+ * greater than 1 is treated as a percentage. Non-finite values fall back to a
+ * neutral 0.5 and the result is always clamped to [0, 1].
+ */
+function normalizeConfidence(c: number): number {
+  if (!Number.isFinite(c)) return 0.5
+  const v = c > 1 ? c / 100 : c
+  return Math.max(0, Math.min(1, v))
+}
+
+/** Concise, user-facing description of an AI/audit error for the dashboard. */
+function describeError(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const name = String((err as { name?: unknown }).name ?? '')
+    if (name === 'AI_NoObjectGeneratedError') {
+      return "the model returned data that didn't match the expected schema"
+    }
+    if (name === 'AI_APICallError' || name === 'AI_RetryError') {
+      return 'the AI model could not be reached'
+    }
+    const msg = (err as { message?: unknown }).message
+    if (typeof msg === 'string' && msg) return msg.split('\n')[0].slice(0, 200)
+    if (name) return name
+  }
+  return err instanceof Error ? err.message.split('\n')[0].slice(0, 200) : String(err)
 }
 
 const prioritizeSchema = z.object({
@@ -277,10 +312,34 @@ export async function runSecurityAudit(args: {
 
   const files = await selectFiles(project.root)
 
+  // Each AI sub-pass is isolated: a failure in one (e.g. the model returning
+  // malformed output) must neither abort the other nor crash the whole run.
+  // We collect failures and surface them on the result so the dashboard can
+  // report the error and the pipeline can move on to the remaining checks.
+  const errors: string[] = []
+
   const [findings, dependencies] = await Promise.all([
-    auditCode(project, files),
-    prioritizeDependencies(project, advisories),
+    auditCode(project, files).catch((err) => {
+      if (process.env.CODELENS_DEBUG) console.error('[codelens] code review failed:', err)
+      errors.push(`code review failed (${describeError(err)})`)
+      return [] as SecurityFinding[]
+    }),
+    prioritizeDependencies(project, advisories).catch((err) => {
+      if (process.env.CODELENS_DEBUG) console.error('[codelens] dependency prioritization failed:', err)
+      errors.push(`dependency prioritization failed (${describeError(err)})`)
+      return advisories
+    }),
   ])
+
+  if (errors.length > 0) {
+    return {
+      findings,
+      dependencies,
+      skipped: false,
+      failed: true,
+      error: `AI security audit had errors: ${errors.join('; ')}`,
+    }
+  }
 
   return { findings, dependencies, skipped: false }
 }
