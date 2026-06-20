@@ -35,6 +35,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${jetbrainsMono.variable} bg-background`}
     >
+      <head>
+        {/* Apply the color-accent preference before paint to avoid a flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(JSON.parse(localStorage.getItem('codelens.settings.v1')||'{}').colorAccents){document.documentElement.classList.add('accents')}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <TooltipProvider delay={200}>{children}</TooltipProvider>

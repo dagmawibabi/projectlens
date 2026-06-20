@@ -20,6 +20,7 @@ import {
   HardDrive,
   History,
   Loader2 as Spinner,
+  Palette,
 } from "lucide-react"
 import {
   Select,
@@ -38,6 +39,7 @@ import {
   loadSettings,
   saveSettings,
   toConfigFile,
+  applyColorAccents,
   DEFAULT_SETTINGS,
   type CodeLensSettings,
   type ModelOption,
@@ -138,7 +140,17 @@ export function SettingsView() {
   function handleReset() {
     setSettings(DEFAULT_SETTINGS)
     saveSettings(DEFAULT_SETTINGS)
+    applyColorAccents(DEFAULT_SETTINGS.colorAccents)
     setSaved(false)
+  }
+
+  // Appearance is a display preference: apply and persist it immediately so it
+  // takes effect (and survives reloads) without needing the Save button.
+  function toggleAccents(on: boolean) {
+    applyColorAccents(on)
+    const next = { ...settings, colorAccents: on }
+    setSettings(next)
+    saveSettings(next)
   }
 
   const configPreview = useMemo(() => JSON.stringify(toConfigFile(settings), null, 2), [settings])
@@ -366,6 +378,22 @@ export function SettingsView() {
         </SectionCard>
 
         <SectionCard
+          icon={Palette}
+          title="Appearance"
+          desc="Tune how the dashboard looks. These preferences are display-only and never affect the CLI config."
+        >
+          <div className="flex flex-col divide-y divide-border">
+            <ToggleRow
+              label="Color accents"
+              hint="Layer subtle semantic colors over the monochrome theme — severity tags, charts, hovers, and focus rings. Takes effect immediately."
+              checked={settings.colorAccents}
+              onChange={toggleAccents}
+            />
+            <AccentPreview enabled={settings.colorAccents} />
+          </div>
+        </SectionCard>
+
+        <SectionCard
           icon={ClipboardList}
           title="Task board"
           desc="Your remediation worklist is stored locally in this browser — it never leaves your machine or reaches the CLI."
@@ -582,6 +610,58 @@ function TaskBoardSection() {
               Reset
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Live swatch preview for the color-accent toggle. Reads the same `--sev-*`,
+ * `--primary` and `--chart-*` tokens the rest of the app uses, so it reflects
+ * the active mode instantly when the `accents` class flips on <html>.
+ */
+function AccentPreview({ enabled }: { enabled: boolean }) {
+  const severities: { key: string; label: string }[] = [
+    { key: "critical", label: "Critical" },
+    { key: "high", label: "High" },
+    { key: "medium", label: "Medium" },
+    { key: "low", label: "Low" },
+    { key: "info", label: "Info" },
+    { key: "ok", label: "Passed" },
+  ]
+  return (
+    <div className="flex flex-col gap-3 py-3">
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-xs text-muted-foreground">Preview</p>
+        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+          {enabled ? "Color accents on" : "Monochrome"}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {severities.map((s) => (
+          <span
+            key={s.key}
+            className="inline-flex items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[11px]"
+            style={{
+              backgroundColor: `color-mix(in oklab, var(--sev-${s.key}) 14%, transparent)`,
+              color: `var(--sev-${s.key})`,
+            }}
+          >
+            <span className="size-1.5 rounded-full" style={{ backgroundColor: `var(--sev-${s.key})` }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="inline-flex items-center rounded-sm bg-primary px-2.5 py-1 font-mono text-[11px] text-primary-foreground">
+          Primary
+        </span>
+        <span className="rounded-sm bg-accent px-2.5 py-1 font-mono text-[11px] text-accent-foreground">Hover</span>
+        <div className="flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <span key={n} className="size-3 rounded-full" style={{ backgroundColor: `var(--chart-${n})` }} />
+          ))}
         </div>
       </div>
     </div>
