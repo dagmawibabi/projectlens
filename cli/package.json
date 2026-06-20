@@ -1,6 +1,6 @@
 {
   "name": "projectlens",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Local lint, type-check & AI security dashboard for JS/TS projects",
   "type": "module",
   "bin": {
