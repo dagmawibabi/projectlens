@@ -143,6 +143,7 @@ export async function startServer(opts: {
   })
 
   const wss = new WebSocketServer({ server, path: "/ws" })
+  wss.on("error", () => {})
   wss.on("connection", (ws) => {
     sockets.add(ws)
     // Hydrate the freshly connected client with the latest known state.
