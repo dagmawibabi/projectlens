@@ -15,6 +15,7 @@ out/
 next-env.d.ts
 cli/public/
 cli/dist/
+.codelens
 
 # Common ignores
 node_modules
