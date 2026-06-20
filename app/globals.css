@@ -158,7 +158,7 @@
  * class on <html>. Keeps the monochrome canvas (background / foreground /
  * borders) but layers subtle semantic hues onto severity tags, charts, accents,
  * hover backgrounds and focus rings. Every token is mirrored in the .dark.accents
- * block so dark mode stays correct.
+ * block so dark mode stays correct. (display-only preference)
  */
 .accents {
   /* Cohesive blue brand accent for primary actions, hovers, and focus */
