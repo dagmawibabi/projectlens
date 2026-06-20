@@ -137,6 +137,10 @@ export interface SecurityResult {
   findings: SecurityFinding[]
   dependencies: DependencyVuln[]
   skipped?: boolean
+  /** True when the AI pass ran but errored (model unreachable / bad output). */
+  failed?: boolean
+  /** Human-readable summary of what went wrong when `failed` is true. */
+  error?: string
 }
 
 export type DependencyKind = "direct" | "dev" | "peer" | "transitive"
