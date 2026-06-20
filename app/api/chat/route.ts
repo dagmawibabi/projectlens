@@ -4,6 +4,8 @@ import { deriveTitle, type ChatSeed, type StoredChat } from "@/lib/chat-types"
 
 // AI SDK must not run on the edge runtime.
 export const maxDuration = 60
+// Served live by the CLI server at runtime; excluded from the static export.
+export const dynamic = "force-dynamic"
 
 /** Default chat model — the Vercel AI Gateway resolves this with zero config. */
 const DEFAULT_MODEL = "google/gemini-2.5-flash"
