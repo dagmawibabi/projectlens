@@ -28,7 +28,10 @@ jobs:
         working-directory: cli
 
       - name: Bump patch version
-        run: npm version patch --no-git-tag-version
+        run: |
+          CURRENT=$(npm view projectlens version 2>/dev/null || echo "0.0.0")
+          npm version "$CURRENT" --no-git-tag-version --allow-same-version
+          npm version patch --no-git-tag-version
         working-directory: cli
 
       - name: Read new version
@@ -54,3 +57,8 @@ jobs:
           git commit -m "chore: release v${{ steps.version.outputs.value }}"
           git tag "v${{ steps.version.outputs.value }}"
           git push && git push --tags
+
+      - name: Create GitHub Release
+        run: gh release create "v${{ steps.version.outputs.value }}" --title "v${{ steps.version.outputs.value }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
