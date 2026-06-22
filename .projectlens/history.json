@@ -1,0 +1,20 @@
+[
+  {
+    "runId": "c086c522-a0a5-459c-a8a9-2b6c73afd9a4",
+    "timestamp": "2026-06-20T16:56:05.165Z",
+    "score": 49,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "typeErrors": 3,
+    "securityFindings": 0
+  },
+  {
+    "runId": "af842986-1fd5-4c29-868e-f2371af7ee09",
+    "timestamp": "2026-06-20T16:56:05.201Z",
+    "score": 49,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "typeErrors": 3,
+    "securityFindings": 0
+  }
+]
