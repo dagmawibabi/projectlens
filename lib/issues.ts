@@ -13,6 +13,7 @@ import type {
   A11yViolation,
   PerfFinding,
   TestFinding,
+  StorageEntry,
 } from "./project-insights"
 
 export type IssueSource =
@@ -27,6 +28,7 @@ export type IssueSource =
   | "a11y"
   | "perf"
   | "tests"
+  | "storage"
 
 /** A normalized issue used by the shared detail sheet. */
 export interface Issue {
@@ -105,6 +107,13 @@ export interface Issue {
   /** Test-finding metadata, present when source === "tests". */
   test?: {
     kind: string
+  }
+  /** Storage-entry metadata, present when source === "storage". */
+  storage?: {
+    path: string
+    kind: string
+    sizeBytes: number
+    sizeLabel: string
   }
 }
 
@@ -328,6 +337,31 @@ export function testToIssue(f: TestFinding): Issue {
     recommendation: f.recommendation,
     snippet: f.snippet,
     test: { kind: f.kind },
+  }
+}
+
+const STORAGE_KIND_LABEL: Record<string, string> = {
+  node_modules: "Dependencies",
+  build: "Build output",
+  cache: "Cache",
+  coverage: "Coverage",
+  other: "Other",
+}
+
+export function storageToIssue(e: StorageEntry): Issue {
+  const sev: Severity = e.sizeBytes > 500_000_000 ? "high" : e.sizeBytes > 100_000_000 ? "medium" : "low"
+  return {
+    source: "storage",
+    severity: sev,
+    title: `${e.path} — ${e.sizeLabel}`,
+    filePath: e.path,
+    line: 1,
+    category: e.kind,
+    description: `${STORAGE_KIND_LABEL[e.kind] ?? e.kind} directory consuming ${e.sizeLabel}. Last modified ${e.lastModifiedRelative}.`,
+    recommendation: e.safeToDelete
+      ? `Safe to delete. ${e.kind === "node_modules" ? "Run your package manager's install command to restore." : "Rebuild to regenerate."}`
+      : undefined,
+    storage: { path: e.path, kind: e.kind, sizeBytes: e.sizeBytes, sizeLabel: e.sizeLabel },
   }
 }
 

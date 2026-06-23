@@ -490,7 +490,7 @@ export function Dashboard({
                   <SecurityPanel security={security} />
                 </TabsContent>
                 <TabsContent value="deps">
-                  <DependenciesPanel deps={deps} />
+                  <DependenciesPanel deps={deps} storage={activeInsights.storage} />
                 </TabsContent>
                 <TabsContent value="env">
                   <EnvPanel env={activeInsights.env} />

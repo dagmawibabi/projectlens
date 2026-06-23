@@ -762,6 +762,45 @@ export interface ApiResult {
 }
 
 /* ------------------------------------------------------------------ */
+/* Storage / Disk Usage (npkill-style)                                 */
+/* ------------------------------------------------------------------ */
+
+export type StorageDirKind = "node_modules" | "build" | "cache" | "coverage" | "other"
+
+export interface StorageEntry {
+  id: string
+  /** Relative path from project root (e.g. "node_modules", "apps/web/node_modules"). */
+  path: string
+  /** Absolute path on disk. */
+  absPath: string
+  /** Category for grouping and icon display. */
+  kind: StorageDirKind
+  /** Size in bytes. */
+  sizeBytes: number
+  /** Human-readable size (e.g. "245 MB"). */
+  sizeLabel: string
+  /** Last modification time (ISO string). */
+  lastModified: string
+  /** Relative time since last modified (e.g. "3 days ago"). */
+  lastModifiedRelative: string
+  /** Whether this directory is safe to delete (not currently in use by a running process). */
+  safeToDelete: boolean
+  /** Whether this directory matches a known pattern (node_modules, .next, dist, etc.). */
+  isKnownTarget: boolean
+}
+
+export interface StorageResult {
+  entries: StorageEntry[]
+  /** Total size of all scanned directories in bytes. */
+  totalSizeBytes: number
+  /** Human-readable total. */
+  totalSizeLabel: string
+  /** The largest entry, for highlight display. */
+  largestEntry?: StorageEntry
+  counts: { total: number; nodeModules: number; build: number; cache: number; other: number }
+}
+
+/* ------------------------------------------------------------------ */
 /* Aggregate                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -777,4 +816,5 @@ export interface ProjectInsights {
   accessibility: A11yResult
   performance: PerfResult
   tests: TestsResult
+  storage: StorageResult
 }

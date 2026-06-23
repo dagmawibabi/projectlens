@@ -1,6 +1,7 @@
 import http from "node:http"
 import { promises as fs } from "node:fs"
 import path from "node:path"
+import os from "node:os"
 import { fileURLToPath } from "node:url"
 import { WebSocketServer, WebSocket } from "ws"
 import type { DashboardState, RunEvent } from "./types.js"
@@ -47,8 +48,10 @@ export async function startServer(opts: {
   onRunRequest?: (scope: "all" | "security", packageName?: string) => Promise<void> | void
   /** Deletes persisted artifacts on disk (DELETE /api/data). */
   onClearData?: (scope: "all" | "runs" | "chats") => Promise<string[]> | string[]
+  /** Called after a storage directory is deleted so the caller can re-scan. */
+  onStorageDelete?: (absPath: string) => Promise<void> | void
 }): Promise<ServerHandle> {
-  const { state, onRunRequest, onClearData } = opts
+  const { state, onRunRequest, onClearData, onStorageDelete } = opts
   let running = false
 
   // Connected dashboards + a broadcast helper, hoisted so request handlers
@@ -113,6 +116,82 @@ export async function startServer(opts: {
         .finally(() => {
           running = false
         })
+      return
+    }
+
+    // Delete a storage directory (npkill-style cleanup).
+    if (url.pathname === "/api/storage/delete" && req.method === "POST") {
+      let body = ""
+      for await (const chunk of req) body += chunk
+      let parsed: { path?: string; mode?: "project" | "machine" }
+      try {
+        parsed = JSON.parse(body)
+      } catch {
+        res.writeHead(400, { "content-type": "application/json" })
+        res.end(JSON.stringify({ ok: false, error: "invalid JSON" }))
+        return
+      }
+      const relPath = parsed.path
+      if (!relPath || typeof relPath !== "string") {
+        res.writeHead(400, { "content-type": "application/json" })
+        res.end(JSON.stringify({ ok: false, error: "missing path" }))
+        return
+      }
+      const mode = parsed.mode ?? "project"
+
+      let absPath: string
+      if (mode === "machine") {
+        // Machine mode: the path is already absolute (sent from the UI)
+        absPath = path.resolve(relPath)
+        const homeDir = os.homedir()
+        if (!absPath.startsWith(homeDir)) {
+          res.writeHead(403, { "content-type": "application/json" })
+          res.end(JSON.stringify({ ok: false, error: "path outside home directory" }))
+          return
+        }
+      } else {
+        // Project mode: resolve against the project root
+        const projectRoot = state.current?.report.meta.project.root
+        if (!projectRoot) {
+          res.writeHead(409, { "content-type": "application/json" })
+          res.end(JSON.stringify({ ok: false, error: "no project loaded" }))
+          return
+        }
+        absPath = path.resolve(projectRoot, relPath)
+        if (!absPath.startsWith(projectRoot)) {
+          res.writeHead(403, { "content-type": "application/json" })
+          res.end(JSON.stringify({ ok: false, error: "path traversal not allowed" }))
+          return
+        }
+      }
+
+      try {
+        await fs.rm(absPath, { recursive: true, force: true })
+        if (onStorageDelete) {
+          Promise.resolve(onStorageDelete(absPath)).catch(() => {})
+        }
+        res.writeHead(200, { "content-type": "application/json" })
+        res.end(JSON.stringify({ ok: true, path: absPath }))
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "delete failed"
+        res.writeHead(500, { "content-type": "application/json" })
+        res.end(JSON.stringify({ ok: false, error: msg }))
+      }
+      return
+    }
+
+    // Machine-wide storage scan (npkill-style).
+    if (url.pathname === "/api/storage/scan-machine" && req.method === "POST") {
+      try {
+        const { collectMachineStorage } = await import("./insights/storage.js")
+        const result = await collectMachineStorage(os.homedir())
+        res.writeHead(200, { "content-type": "application/json" })
+        res.end(JSON.stringify(result))
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "machine scan failed"
+        res.writeHead(500, { "content-type": "application/json" })
+        res.end(JSON.stringify({ ok: false, error: msg }))
+      }
       return
     }
 

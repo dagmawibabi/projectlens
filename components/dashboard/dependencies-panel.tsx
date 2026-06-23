@@ -1,15 +1,17 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Package, ShieldCheck, ArrowUpRight, Boxes, ListTree, Share2 } from "lucide-react"
+import { Package, ShieldCheck, ArrowUpRight, Boxes, ListTree, Share2, HardDrive } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { InsightCard, ProportionBar, CountList } from "./insights"
 import { FileLink, useInspector, TrackedBadge } from "./inspector"
 import { DependencyGraph } from "./dependency-graph"
+import { StoragePanel } from "./storage-panel"
 import { severityStyle, bySeverityDesc } from "@/lib/severity"
 import { depToIssue } from "@/lib/issues"
 import type { DependencyResult, DependencyFinding, DependencyIssueKind } from "@/lib/schema"
+import type { StorageResult } from "@/lib/project-insights"
 import { cn } from "@/lib/utils"
 
 const KIND_LABEL: Record<DependencyIssueKind, string> = {
@@ -81,12 +83,13 @@ function FindingRow({ dep }: { dep: DependencyFinding }) {
   )
 }
 
-export function DependenciesPanel({ deps }: { deps: DependencyResult }) {
-  const [view, setView] = useState<"findings" | "graph">("findings")
+export function DependenciesPanel({ deps, storage }: { deps: DependencyResult; storage: StorageResult }) {
+  const [view, setView] = useState<"findings" | "graph" | "storage">("findings")
 
-  const subTabs: { key: "findings" | "graph"; label: string; icon: typeof ListTree; count?: number }[] = [
+  const subTabs: { key: "findings" | "graph" | "storage"; label: string; icon: typeof ListTree; count?: number }[] = [
     { key: "findings", label: "Findings", icon: ListTree, count: deps.findings.length },
     { key: "graph", label: "Dependency graph", icon: Share2, count: deps.graph?.nodes.length },
+    { key: "storage", label: "Storage", icon: HardDrive, count: storage.counts.total },
   ]
 
   return (
@@ -112,7 +115,13 @@ export function DependenciesPanel({ deps }: { deps: DependencyResult }) {
         ))}
       </div>
 
-      {view === "graph" && deps.graph ? <DependencyGraph graph={deps.graph} /> : <FindingsView deps={deps} />}
+      {view === "storage" ? (
+        <StoragePanel storage={storage} />
+      ) : view === "graph" && deps.graph ? (
+        <DependencyGraph graph={deps.graph} />
+      ) : (
+        <FindingsView deps={deps} />
+      )}
     </div>
   )
 }

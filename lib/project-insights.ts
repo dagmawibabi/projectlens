@@ -897,6 +897,33 @@ export interface ApiResult {
 }
 
 /* ------------------------------------------------------------------ */
+/* Storage / Disk Usage (npkill-style)                                 */
+/* ------------------------------------------------------------------ */
+
+export type StorageDirKind = "node_modules" | "build" | "cache" | "coverage" | "other"
+
+export interface StorageEntry {
+  id: string
+  path: string
+  absPath: string
+  kind: StorageDirKind
+  sizeBytes: number
+  sizeLabel: string
+  lastModified: string
+  lastModifiedRelative: string
+  safeToDelete: boolean
+  isKnownTarget: boolean
+}
+
+export interface StorageResult {
+  entries: StorageEntry[]
+  totalSizeBytes: number
+  totalSizeLabel: string
+  largestEntry?: StorageEntry
+  counts: { total: number; nodeModules: number; build: number; cache: number; other: number }
+}
+
+/* ------------------------------------------------------------------ */
 /* Aggregate                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -912,6 +939,9 @@ export interface ProjectInsights {
   accessibility: A11yResult
   performance: PerfResult
   tests: TestsResult
+  storage: StorageResult
+  /** Machine-wide storage scan result (populated on demand via "Entire Machine" toggle). */
+  machineStorage?: StorageResult
 }
 
 /* ================================================================== */
@@ -2710,5 +2740,229 @@ export const projectInsights: ProjectInsights = {
       { filePath: "lib/api.ts", lines: 81, functions: 85, branches: 72, statements: 83 },
       { filePath: "lib/money.ts", lines: 98, functions: 100, branches: 94, statements: 98 },
     ],
+  },
+
+  storage: {
+    entries: [
+      {
+        id: "s1",
+        path: "node_modules",
+        absPath: "/home/dev/projects/storefront/node_modules",
+        kind: "node_modules",
+        sizeBytes: 892_000_000,
+        sizeLabel: "892 MB",
+        lastModified: "2026-06-23T10:30:00Z",
+        lastModifiedRelative: "2 hours ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "s2",
+        path: ".next",
+        absPath: "/home/dev/projects/storefront/.next",
+        kind: "build",
+        sizeBytes: 342_000_000,
+        sizeLabel: "342 MB",
+        lastModified: "2026-06-23T09:15:00Z",
+        lastModifiedRelative: "3 hours ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "s3",
+        path: "apps/web/node_modules",
+        absPath: "/home/dev/projects/storefront/apps/web/node_modules",
+        kind: "node_modules",
+        sizeBytes: 128_000_000,
+        sizeLabel: "128 MB",
+        lastModified: "2026-06-22T18:45:00Z",
+        lastModifiedRelative: "yesterday",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "s4",
+        path: ".turbo",
+        absPath: "/home/dev/projects/storefront/.turbo",
+        kind: "cache",
+        sizeBytes: 47_000_000,
+        sizeLabel: "47 MB",
+        lastModified: "2026-06-23T08:00:00Z",
+        lastModifiedRelative: "4 hours ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "s5",
+        path: "coverage",
+        absPath: "/home/dev/projects/storefront/coverage",
+        kind: "coverage",
+        sizeBytes: 12_000_000,
+        sizeLabel: "12 MB",
+        lastModified: "2026-06-21T14:20:00Z",
+        lastModifiedRelative: "2 days ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+    ],
+    totalSizeBytes: 1_421_000_000,
+    totalSizeLabel: "1.4 GB",
+    largestEntry: {
+      id: "s1",
+      path: "node_modules",
+      absPath: "/home/dev/projects/storefront/node_modules",
+      kind: "node_modules",
+      sizeBytes: 892_000_000,
+      sizeLabel: "892 MB",
+      lastModified: "2026-06-23T10:30:00Z",
+      lastModifiedRelative: "2 hours ago",
+      safeToDelete: true,
+      isKnownTarget: true,
+    },
+    counts: { total: 5, nodeModules: 2, build: 1, cache: 1, other: 0 },
+  },
+
+  /* ------------------------------------------------------------------ */
+  /* Machine-wide storage demo data (npkill-style)                       */
+  /* Used by the "Entire Machine" toggle in the Storage panel.           */
+  /* ------------------------------------------------------------------ */
+  machineStorage: {
+    entries: [
+      {
+        id: "ms1",
+        path: "projects/storefront/node_modules",
+        absPath: "/home/dev/projects/storefront/node_modules",
+        kind: "node_modules",
+        sizeBytes: 892_000_000,
+        sizeLabel: "892 MB",
+        lastModified: "2026-06-23T10:30:00Z",
+        lastModifiedRelative: "2 hours ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms2",
+        path: "projects/storefront/.next",
+        absPath: "/home/dev/projects/storefront/.next",
+        kind: "build",
+        sizeBytes: 342_000_000,
+        sizeLabel: "342 MB",
+        lastModified: "2026-06-23T09:15:00Z",
+        lastModifiedRelative: "3 hours ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms3",
+        path: "projects/dashboard/node_modules",
+        absPath: "/home/dev/projects/dashboard/node_modules",
+        kind: "node_modules",
+        sizeBytes: 654_000_000,
+        sizeLabel: "654 MB",
+        lastModified: "2026-06-22T16:00:00Z",
+        lastModifiedRelative: "yesterday",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms4",
+        path: "projects/dashboard/dist",
+        absPath: "/home/dev/projects/dashboard/dist",
+        kind: "build",
+        sizeBytes: 78_000_000,
+        sizeLabel: "78 MB",
+        lastModified: "2026-06-22T16:30:00Z",
+        lastModifiedRelative: "yesterday",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms5",
+        path: "projects/api-server/node_modules",
+        absPath: "/home/dev/projects/api-server/node_modules",
+        kind: "node_modules",
+        sizeBytes: 445_000_000,
+        sizeLabel: "445 MB",
+        lastModified: "2026-06-20T12:00:00Z",
+        lastModifiedRelative: "3 days ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms6",
+        path: "projects/api-server/.turbo",
+        absPath: "/home/dev/projects/api-server/.turbo",
+        kind: "cache",
+        sizeBytes: 89_000_000,
+        sizeLabel: "89 MB",
+        lastModified: "2026-06-20T12:00:00Z",
+        lastModifiedRelative: "3 days ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms7",
+        path: ".npm/_cacache",
+        absPath: "/home/dev/.npm/_cacache",
+        kind: "cache",
+        sizeBytes: 1_200_000_000,
+        sizeLabel: "1.2 GB",
+        lastModified: "2026-06-23T11:00:00Z",
+        lastModifiedRelative: "1 hour ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms8",
+        path: "projects/portfolio/dist",
+        absPath: "/home/dev/projects/portfolio/dist",
+        kind: "build",
+        sizeBytes: 34_000_000,
+        sizeLabel: "34 MB",
+        lastModified: "2026-06-19T08:00:00Z",
+        lastModifiedRelative: "4 days ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms9",
+        path: "projects/portfolio/node_modules",
+        absPath: "/home/dev/projects/portfolio/node_modules",
+        kind: "node_modules",
+        sizeBytes: 267_000_000,
+        sizeLabel: "267 MB",
+        lastModified: "2026-06-19T08:00:00Z",
+        lastModifiedRelative: "4 days ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+      {
+        id: "ms10",
+        path: "projects/storefront/coverage",
+        absPath: "/home/dev/projects/storefront/coverage",
+        kind: "coverage",
+        sizeBytes: 12_000_000,
+        sizeLabel: "12 MB",
+        lastModified: "2026-06-21T14:20:00Z",
+        lastModifiedRelative: "2 days ago",
+        safeToDelete: true,
+        isKnownTarget: true,
+      },
+    ],
+    totalSizeBytes: 4_013_000_000,
+    totalSizeLabel: "4.0 GB",
+    largestEntry: {
+      id: "ms7",
+      path: ".npm/_cacache",
+      absPath: "/home/dev/.npm/_cacache",
+      kind: "cache",
+      sizeBytes: 1_200_000_000,
+      sizeLabel: "1.2 GB",
+      lastModified: "2026-06-23T11:00:00Z",
+      lastModifiedRelative: "1 hour ago",
+      safeToDelete: true,
+      isKnownTarget: true,
+    },
+    counts: { total: 10, nodeModules: 4, build: 3, cache: 2, other: 1 },
   },
 }

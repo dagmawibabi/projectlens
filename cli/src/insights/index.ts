@@ -10,6 +10,7 @@ import { collectApi } from "./api.js"
 import { collectAccessibility } from "./accessibility.js"
 import { collectPerformance } from "./performance.js"
 import { collectTests } from "./tests.js"
+import { collectStorage } from "./storage.js"
 import { collectTypeDefinitions } from "./typedefs.js"
 import type { ProjectInsights, TypeDefinition } from "../types.js"
 
@@ -49,7 +50,7 @@ export async function collectInsights(
     }
   }
 
-  const [env, network, git, setup, docs, database, auth, api, accessibility, performance, tests, typeDefinitions] =
+  const [env, network, git, setup, docs, database, auth, api, accessibility, performance, tests, storage, typeDefinitions] =
     await Promise.all([
       safe("env", () => collectEnv(scan), emptyEnv()),
       safe("network", () => collectNetwork(scan), emptyNetwork()),
@@ -62,11 +63,12 @@ export async function collectInsights(
       safe("accessibility", () => collectAccessibility(scan), emptyA11y()),
       safe("performance", () => collectPerformance(scan), emptyPerf()),
       safe("tests", () => collectTests(scan), emptyTests()),
+      safe("storage", () => collectStorage(scan), emptyStorage()),
       safe("types", () => collectTypeDefinitions(scan), [] as TypeDefinition[]),
     ])
 
   return {
-    insights: { env, network, git, setup, docs, database, auth, api, accessibility, performance, tests },
+    insights: { env, network, git, setup, docs, database, auth, api, accessibility, performance, tests, storage },
     typeDefinitions,
   }
 }
@@ -183,5 +185,13 @@ function emptyTests(): ProjectInsights["tests"] {
     findings: [],
     files: [],
     counts: { total: 0, passed: 0, failed: 0, skipped: 0, suites: 0, durationMs: 0 },
+  }
+}
+function emptyStorage(): ProjectInsights["storage"] {
+  return {
+    entries: [],
+    totalSizeBytes: 0,
+    totalSizeLabel: "0 B",
+    counts: { total: 0, nodeModules: 0, build: 0, cache: 0, other: 0 },
   }
 }

@@ -139,6 +139,12 @@ export const EMPTY_INSIGHTS: ProjectInsights = {
     files: [],
     counts: { total: 0, passed: 0, failed: 0, skipped: 0, suites: 0, durationMs: 0 },
   },
+  storage: {
+    entries: [],
+    totalSizeBytes: 0,
+    totalSizeLabel: "0 B",
+    counts: { total: 0, nodeModules: 0, build: 0, cache: 0, other: 0 },
+  },
 }
 
 export const EMPTY_DATA: DashboardData = {

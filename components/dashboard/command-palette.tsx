@@ -18,6 +18,7 @@ import {
   Gauge,
   FlaskConical,
   CircleDot,
+  HardDrive,
 } from "lucide-react"
 import {
   Command,
@@ -44,6 +45,7 @@ import {
   a11yToIssue,
   perfToIssue,
   testToIssue,
+  storageToIssue,
   type Issue,
 } from "@/lib/issues"
 import type { AnalysisReport } from "@/lib/schema"
@@ -97,6 +99,7 @@ export function CommandPalette({
     insights.network.calls.forEach((c) => out.push({ id: `net-${c.id}`, issue: networkToIssue(c), group: "Network", icon: Globe }))
     insights.git.issues.forEach((g) => out.push({ id: `git-${g.id}`, issue: gitToIssue(g), group: "Git", icon: GitBranch }))
     insights.git.workflows.forEach((w) => w.issues.forEach((g) => out.push({ id: `ci-${g.id}`, issue: gitToIssue(g), group: "CI/CD", icon: GitBranch })))
+    insights.storage.entries.forEach((e) => out.push({ id: `storage-${e.id}`, issue: storageToIssue(e), group: "Storage", icon: HardDrive }))
     return out
   }, [report, insights])
 
